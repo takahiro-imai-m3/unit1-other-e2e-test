@@ -78,7 +78,10 @@ yarn playwright test --project=chromium-desktop-vpn-direct
 ## テスト一覧
 
 ### OPD標準テスト
-- `tests/opdStandard/unit1-opd-id39.spec.ts` - Unit1_OPD_標準テスト_ID39
+- `tests/opdStandard/unit1-opd-id38.spec.ts` - Unit1_OPD_標準テスト_ID38 (Android ポートレート)
+- `tests/opdStandard/unit1-opd-id39.spec.ts` - Unit1_OPD_標準テスト_ID39 (Android ランドスケープ)
+- `tests/opdStandard/unit1-opd-id40.spec.ts` - Unit1_OPD_標準テスト_ID40 (iOS ポートレート)
+- `tests/opdStandard/unit1-opd-id41.spec.ts` - Unit1_OPD_標準テスト_ID41 (iOS ランドスケープ)
 
 ## 主要な依存パッケージ
 
