@@ -22,6 +22,19 @@ export class OPDCreatePage extends BasePage {
   readonly messageTypeNormalOpdRadio: Locator;
   readonly embeddedMovieUsePcSpOneTagRadio: Locator;
   readonly qfbOutputFalseRadio: Locator;
+  readonly oneSourceCssUseRadio: Locator;
+  readonly oneSourceCssNotUseRadio: Locator;
+
+  // チェックボックス
+  readonly useMedicalAffairsCheckbox: Locator;
+
+  // Personal OPD
+  readonly personalOpdClientIdSelect: Locator;
+  readonly personalInsertTextSwitch: Locator;
+
+  // QFB (Quick Feedback)
+  readonly qfbUseSwitch: Locator;
+  readonly qfbAnswerLimitInput: Locator;
 
   // 日時ピッカー
   readonly startDateTimeField: Locator;
@@ -64,6 +77,24 @@ export class OPDCreatePage extends BasePage {
     this.messageTypeNormalOpdRadio = page.locator('#messageType_messageTypeNormalOpd > span.el-radio__label');
     this.embeddedMovieUsePcSpOneTagRadio = page.locator('#useEmbeddedMovie_doUseEmbeddedMoviePcSpOneTag > span.el-radio__label');
     this.qfbOutputFalseRadio = page.locator('#reportingQfbOutput_reportingQfbOutputFalse > span.el-radio__label');
+    // 1ソース用CSS（IDは推測、実際の画面で確認が必要）
+    this.oneSourceCssUseRadio = page.locator('span.el-radio__label').filter({ hasText: '利用する' }).first();
+    this.oneSourceCssNotUseRadio = page.locator('span.el-radio__label').filter({ hasText: '利用しない' }).first();
+
+    // チェックボックス
+    this.useMedicalAffairsCheckbox = page.locator('#useMedicalAffairs');
+
+    // Personal OPD
+    // Client IDのドロップダウンセレクト
+    this.personalOpdClientIdSelect = page.locator('label:has-text("Client ID")').locator('..').locator('.el-select');
+    // 差し込み文言オプションのスイッチ
+    this.personalInsertTextSwitch = page.locator('label:has-text("差し込み文言オプション")').locator('..').locator('.el-switch');
+
+    // QFB (Quick Feedback)
+    // QFB利用するスイッチ
+    this.qfbUseSwitch = page.locator('label:has-text("QFB設定")').locator('..').locator('.el-switch').first();
+    // QFB回答上限数
+    this.qfbAnswerLimitInput = page.getByRole('textbox', { name: '回答上限数' });
 
     // 日時ピッカー (Playwright Codegenで生成されたセレクターを使用)
     this.startDateTimeField = page.getByRole('textbox', { name: '*開始日時' });
@@ -276,6 +307,12 @@ export class OPDCreatePage extends BasePage {
     endTime: string;
     companyCode: string;
     pcDetailBody: string;
+    useMedicalAffairs?: boolean;
+    useOneSourceCss?: boolean;
+    personalOpdClientId?: string;  // Personal OPD用のClient ID（例: "37100"）
+    personalInsertText?: boolean;  // 差し込み文言オプション（true/false）
+    useQfb?: boolean;  // QFB機能を利用するか
+    qfbAnswerLimit?: string;  // QFB回答上限数（例: "1"）
   }): Promise<string> {
     // 基本情報入力
     await this.fillBasicInfo({
@@ -308,6 +345,74 @@ export class OPDCreatePage extends BasePage {
 
     // PCディテール本文
     await this.setPcDetailBodyAndCopy(data.pcDetailBody);
+
+    // ワンポイントMA（オプション）
+    if (data.useMedicalAffairs) {
+      // JavaScriptで直接チェックボックスを操作（ElementUIのスイッチコンポーネント対応）
+      await this.page.evaluate(() => {
+        const checkbox = document.querySelector('#useMedicalAffairs') as HTMLInputElement;
+        if (checkbox && !checkbox.checked) {
+          checkbox.click();
+        }
+      });
+      await this.page.waitForTimeout(500);
+    }
+
+    // 1ソース用CSS（オプション）
+    if (data.useOneSourceCss !== undefined) {
+      if (data.useOneSourceCss) {
+        await this.oneSourceCssUseRadio.click();
+      } else {
+        await this.oneSourceCssNotUseRadio.click();
+      }
+      await this.page.waitForTimeout(500);
+    }
+
+    // Personal OPD（オプション）
+    if (data.personalOpdClientId) {
+      // Client IDのドロップダウンをクリック
+      await this.personalOpdClientIdSelect.click();
+      await this.page.waitForTimeout(1000);
+
+      // ドロップダウンからClient IDを選択（例: "37100 ／ Personal 医療情報（支店名）"）
+      const clientIdOption = this.page.locator('.el-select-dropdown__item').filter({ hasText: data.personalOpdClientId });
+      await clientIdOption.click();
+      await this.page.waitForTimeout(500);
+
+      // 差し込み文言オプション設定
+      if (data.personalInsertText !== undefined) {
+        // スイッチの現在の状態を確認
+        const switchElement = this.personalInsertTextSwitch;
+        const isChecked = await switchElement.evaluate((el) => el.classList.contains('is-checked'));
+
+        // 希望する状態と異なる場合はクリック
+        if (data.personalInsertText && !isChecked) {
+          await switchElement.click();
+          await this.page.waitForTimeout(500);
+        } else if (!data.personalInsertText && isChecked) {
+          await switchElement.click();
+          await this.page.waitForTimeout(500);
+        }
+      }
+    }
+
+    // QFB (Quick Feedback)（オプション）
+    if (data.useQfb) {
+      // QFB利用スイッチをON
+      const qfbSwitchElement = this.qfbUseSwitch;
+      const isQfbChecked = await qfbSwitchElement.evaluate((el) => el.classList.contains('is-checked'));
+
+      if (!isQfbChecked) {
+        await qfbSwitchElement.click();
+        await this.page.waitForTimeout(1000);  // QFB設定エリアの表示を待つ
+      }
+
+      // QFB回答上限数を設定
+      if (data.qfbAnswerLimit) {
+        await this.qfbAnswerLimitInput.fill(data.qfbAnswerLimit);
+        await this.page.waitForTimeout(500);
+      }
+    }
 
     // 作成実行
     await this.clickCreate();

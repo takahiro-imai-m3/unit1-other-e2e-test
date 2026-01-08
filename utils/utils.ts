@@ -71,6 +71,42 @@ export function getFormattedDate(format: string,date:Date=new Date()): string {
   return formatted;
 }
 /**
+ * 指定されたフォーマットと日数オフセットで日時文字列を生成します。
+ * 大文字のYYYY/MM/DDフォーマットに対応したエイリアス関数。
+ * @param format フォーマット文字列 (例: 'YYYY/MM/DD')
+ * @param daysOffset 加算する日数 (デフォルトは0。負の数を指定すると減算)
+ * @returns フォーマットされた日時文字列
+ */
+export function generateDateString(format: string, daysOffset: number = 0): string {
+  const targetDate = new Date();
+
+  if (daysOffset !== 0) {
+    targetDate.setDate(targetDate.getDate() + daysOffset);
+  }
+
+  const year = targetDate.getFullYear();
+  const month = targetDate.getMonth() + 1;
+  const day = targetDate.getDate();
+  const hours = targetDate.getHours();
+  const minutes = targetDate.getMinutes();
+  const seconds = targetDate.getSeconds();
+
+  let formatted = format;
+  // 大文字のYYYY/MM/DD形式に対応
+  formatted = formatted.replace(/YYYY/g, String(year));
+  formatted = formatted.replace(/yyyy/g, String(year));
+  formatted = formatted.replace(/MM/g, String(month).padStart(2, '0'));
+  formatted = formatted.replace(/DD/g, String(day).padStart(2, '0'));
+  formatted = formatted.replace(/dd/g, String(day).padStart(2, '0'));
+  formatted = formatted.replace(/HH/g, String(hours).padStart(2, '0'));
+  formatted = formatted.replace(/hh/g, String(hours).padStart(2, '0'));
+  formatted = formatted.replace(/mm/g, String(minutes).padStart(2, '0'));
+  formatted = formatted.replace(/ss/g, String(seconds).padStart(2, '0'));
+
+  return formatted;
+}
+
+/**
  * 任意の日時を指定された日数だけ加算し、指定されたフォーマットの文字列で返します。
  * フォーマットには以下のプレースホルダーを使用できます。
  * yyyy: 年 (4桁)
