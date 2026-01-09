@@ -44,7 +44,7 @@ export class OPDPromotionMailPage extends BasePage {
   async goto(opdId: string, proxyNumber: string = '-qa1') {
     await this.page.goto(`https://opex${proxyNumber}.unit1.qa-a.m3internal.com/internal/mrf_management/promotion_mail/${opdId}`);
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(10000);
+    await this.page.waitForTimeout(15000); // ページロード完了まで待機時間を延長
   }
 
   /**
@@ -54,52 +54,62 @@ export class OPDPromotionMailPage extends BasePage {
     await this.previewImageButton.click();
     console.log('✓ プレビュー画像生成を開始');
 
-    // ポーリングでプレビュー画像生成完了を確認（最大90秒、5秒間隔）
-    const maxAttempts = 18; // 18回 × 5秒 = 90秒
-    let attempt = 0;
-    let imageGenerated = false;
+    // 初期待機（画像生成処理開始まで）
+    await this.page.waitForTimeout(40000);
+    console.log('⏳ 40秒経過、ステータス確認開始...');
 
-    while (attempt < maxAttempts && !imageGenerated) {
-      await this.page.waitForTimeout(5000);
+    // ステータスが「配信登録待ち」になるまで待機（最大45秒、3秒間隔でポーリング）
+    const maxAttempts = 15; // 15回 × 3秒 = 45秒
+    let attempt = 0;
+    let statusReady = false;
+
+    while (attempt < maxAttempts && !statusReady) {
+      await this.page.waitForTimeout(3000);
       attempt++;
 
-      // プレビュー画像最新更新日時が「未生成」でなくなったかを確認
-      imageGenerated = await this.page.evaluate(() => {
-        const updateTimeText = document.body.innerText;
-        return !updateTimeText.includes('プレビュー画像最新更新日時 : 未生成');
+      // 「配信登録待ち」ステータスが表示されているか確認
+      statusReady = await this.page.evaluate(() => {
+        const statusText = document.body.innerText;
+        return statusText.includes('配信登録待ち');
       });
 
-      if (imageGenerated) {
-        console.log(`✓ プレビュー画像生成完了（${attempt * 5}秒後）`);
-
-        // 画像生成後、フィールドが有効化されるまでさらに少し待機
-        await this.page.waitForTimeout(3000);
-
-        // フィールドが有効化されたか確認
-        const fieldEnabled = await this.page.evaluate(() => {
-          const field = document.querySelector('input[placeholder="既読促進メールの配信日付"]');
-          return field ? !(field as HTMLInputElement).disabled : false;
-        });
-
-        if (fieldEnabled) {
-          console.log('✓ 配信日付フィールドが有効化されました');
-        } else {
-          console.log('⚠️  プレビュー画像は生成されましたが、フィールドはまだ無効です');
-        }
-
+      if (statusReady) {
+        console.log(`✓ ステータス確認: 配信登録待ち（${attempt * 3}秒後）`);
         break;
       } else {
-        console.log(`⏳ プレビュー画像生成中... (${attempt * 5}秒経過)`);
+        console.log(`⏳ ステータス待機中... (${40 + attempt * 3}秒経過)`);
       }
     }
 
-    if (!imageGenerated) {
+    if (!statusReady) {
       // タイムアウト時はデバッグ情報を出力
-      await this.page.screenshot({ path: 'debug-preview-timeout.png', fullPage: true });
+      await this.page.screenshot({ path: 'debug-status-timeout.png', fullPage: true });
       const pageHtml = await this.page.content();
-      require('fs').writeFileSync('debug-preview-timeout.html', pageHtml);
-      console.log('⚠️  プレビュー画像が90秒経過しても生成されませんでした');
-      console.log('デバッグファイル保存: debug-preview-timeout.png, debug-preview-timeout.html');
+      require('fs').writeFileSync('debug-status-timeout.html', pageHtml);
+      console.log('⚠️  「配信登録待ち」ステータスが85秒経過しても表示されませんでした');
+      console.log('デバッグファイル保存: debug-status-timeout.png, debug-status-timeout.html');
+
+      // 現在表示されているステータスを出力
+      const currentStatus = await this.page.evaluate(() => {
+        const spans = Array.from(document.querySelectorAll('span'));
+        return spans
+          .map(s => s.innerText)
+          .filter(text => text && (text.includes('配信') || text.includes('待ち') || text.includes('登録')))
+          .slice(0, 10);
+      });
+      console.log('現在のステータス関連テキスト:', currentStatus);
+    } else {
+      // 配信日付フィールドが有効化されたか確認
+      const fieldEnabled = await this.page.evaluate(() => {
+        const field = document.querySelector('input[placeholder="既読促進メールの配信日付"]');
+        return field ? !(field as HTMLInputElement).disabled : false;
+      });
+
+      if (fieldEnabled) {
+        console.log('✓ 配信日付フィールドが有効化されました');
+      } else {
+        console.log('⚠️  ステータスは「配信登録待ち」ですが、フィールドはまだ無効です');
+      }
     }
   }
 
@@ -157,10 +167,11 @@ export class OPDPromotionMailPage extends BasePage {
     await this.page.waitForTimeout(500);
 
     // OKボタンを2回押下（日付と時刻の確定）
-    await this.okButton.click();
+    // 複数のOKボタンが存在する場合があるため、最初のボタンをクリック
+    await this.page.getByRole('button', { name: 'OK' }).first().click();
     await this.page.waitForTimeout(500);
-    await this.okButton.click();
-    await this.page.waitForTimeout(500);
+    await this.page.getByRole('button', { name: 'OK' }).first().click();
+    await this.page.waitForTimeout(2000); // 日付ピッカーが完全に閉じるまで待機
 
     console.log(`✓ メール配信予定日時を設定: ${date} ${time}`);
   }
@@ -171,14 +182,18 @@ export class OPDPromotionMailPage extends BasePage {
    */
   async registerDelivery(testEmail: string = 'qa-Read_promotion_test@m3.com') {
     // テストメール送信先を入力
-    const testEmailInput = this.page.locator('input[type="text"]').filter({ hasText: '' }).first();
+    // 配信日付フィールドの後にある、role=textboxで検索
+    const allTextboxes = await this.page.getByRole('textbox').all();
+    // 配信日付フィールドが1つ目、テストメールが2つ目と想定
+    const testEmailInput = allTextboxes[1];
     await testEmailInput.fill(testEmail);
     await this.page.waitForTimeout(500);
     console.log(`✓ テストメール送信先を設定: ${testEmail}`);
 
     // DCF有無を「無」に設定
-    const dcfNoneSpan = this.page.locator('span').filter({ hasText: '無' }).first();
-    await dcfNoneSpan.click();
+    // 日付ピッカーが邪魔している可能性があるため、forceオプションを使用
+    const dcfNoneSpan = this.page.locator('span').filter({ hasText: /^無$/ }).nth(1);
+    await dcfNoneSpan.click({ force: true });
     await this.page.waitForTimeout(500);
     console.log('✓ DCF有無を「無」に設定');
 

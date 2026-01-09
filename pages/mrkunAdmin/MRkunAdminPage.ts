@@ -78,7 +78,9 @@ export class MRkunAdminPage extends BasePage {
       targetPage.locator('textarea')
     ).first();
 
-    await systemCodeField.fill(systemCode);
+    // システムコードがスペース区切りの場合は改行に変換
+    const formattedSystemCode = systemCode.replace(/\s+/g, '\n');
+    await systemCodeField.fill(formattedSystemCode);
 
     // 追加ボタンをクリック
     const addBtn = targetPage.getByRole('button', { name: '追加' });
@@ -102,18 +104,42 @@ export class MRkunAdminPage extends BasePage {
       console.log('スクリーンショット保存: debug-confirmation-page.png');
       console.log('HTML保存: debug-confirmation-page.html');
 
-      // 確認画面が表示された場合、ターゲットの追加は完了している
-      // （この画面には「実行」ボタンがdisabledで、「キャンセル」ボタンで閉じる）
-      console.log('✓ ターゲット追加処理が完了しました（確認画面表示）');
+      // 警告メッセージが存在する場合、警告チェックボックスにチェックして実行
+      const hasWarning = await targetPage.locator('h3.err_msg').isVisible({ timeout: 2000 }).catch(() => false);
+      if (hasWarning) {
+        console.log('⚠️  警告メッセージが表示されています。警告を無視して続行します。');
 
-      // キャンセルボタンをクリックして画面を閉じる
-      const cancelButton = targetPage.getByRole('button', { name: 'キャンセル' });
-      const isCancelButtonVisible = await cancelButton.isVisible({ timeout: 5000 }).catch(() => false);
-      if (isCancelButtonVisible) {
-        await cancelButton.click();
-        console.log('確認画面を閉じました（キャンセルボタン）');
-        // ページが閉じられるまで待つ
-        await targetPage.waitForEvent('close', { timeout: 3000 }).catch(() => {});
+        // 警告チェックボックスにチェック
+        const warningCheckbox = targetPage.locator('input#warning');
+        await warningCheckbox.check();
+        await targetPage.waitForTimeout(1000);
+        console.log('✓ 警告チェックボックスにチェックしました');
+
+        // 実行ボタンをクリック
+        const executeButton = targetPage.locator('button#register_button');
+        await executeButton.click();
+        console.log('✓ 実行ボタンをクリックしました');
+
+        // 結果画面に遷移するまで待機
+        await targetPage.waitForTimeout(3000);
+
+        // 結果画面のタイトルを確認
+        const resultPageTitle = await targetPage.title();
+        console.log(`結果画面タイトル: ${resultPageTitle}`);
+
+        if (resultPageTitle.includes('結果画面')) {
+          console.log('✓ ターゲット追加が完了しました（結果画面表示）');
+        }
+      } else {
+        console.log('警告メッセージはありません。実行ボタンをクリックします。');
+
+        // 実行ボタンをクリック
+        const executeButton = targetPage.locator('button#register_button');
+        await executeButton.click();
+        console.log('✓ 実行ボタンをクリックしました');
+
+        // 結果画面に遷移するまで待機
+        await targetPage.waitForTimeout(3000);
       }
 
       return; // 処理完了

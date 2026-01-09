@@ -30,7 +30,7 @@ test.describe('Unit1_OPD_標準テスト_ID76', () => {
   let opdId: string;
   let opdTitle: string;
 
-  test.skip('OPD作成 → MR君ターゲット設定 → 開封促進メール配信準備', async ({ browser }) => {
+  test('OPD作成 → MR君ターゲット設定 → 開封促進メール配信準備', async ({ browser }) => {
     console.log('#### Unit1_OPD_標準テスト_ID76');
 
     // ========================================
@@ -129,6 +129,13 @@ test.describe('Unit1_OPD_標準テスト_ID76', () => {
 
     await mrkunContext.close();
 
+    // MR君のターゲット設定がOPEXに反映されるまで待機
+    console.log('⏳ ターゲット設定の反映待機中...');
+    await browser.newContext().then(ctx => ctx.close()); // 待機用
+    const waitTime = 10000; // 10秒
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    console.log(`✓ ${waitTime / 1000}秒待機完了`);
+
     // ========================================
     // Part 3: 開封促進メール配信準備
     // ========================================
@@ -155,23 +162,4 @@ test.describe('Unit1_OPD_標準テスト_ID76', () => {
     console.log('📝 注記: 実際のメール配信は手動で実施してください');
   });
 
-  // 開封促進メール部分のみのテスト（既存OPDを使用）
-  test('開封促進メール配信準備のみ（OPD 17583）', async ({ browser }) => {
-    console.log('#### 開封促進メール配信準備テスト');
-
-    const opexContext = await browser.newContext({
-      storageState: '.auth/opex-user.json',
-      viewport: { width: 1280, height: 720 },
-    });
-
-    const opexPage = await opexContext.newPage();
-    const promotionMailPage = new OPDPromotionMailPage(opexPage);
-
-    // 既存のOPD 17583で開封促進メールをテスト
-    await promotionMailPage.setupPromotionMail('17583', undefined, '09:00:00', '-qa1');
-
-    await opexContext.close();
-
-    console.log('\n✅ 開封促進メール配信準備完了');
-  });
 });
