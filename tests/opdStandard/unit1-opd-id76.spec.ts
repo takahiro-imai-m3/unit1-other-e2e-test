@@ -52,9 +52,24 @@ test.describe('Unit1_OPD_標準テスト_ID76', () => {
     await opexPage.goto(dashboardUrl);
     await opexPage.waitForLoadState('networkidle');
 
+    // 認証状態を確認（ログインページにリダイレクトされていないか）
+    const currentUrl = opexPage.url();
+    if (currentUrl.includes('login') || currentUrl.includes('auth') || currentUrl.includes('signin')) {
+      throw new Error(`OPEX管理画面の認証が切れています。現在のURL: ${currentUrl}\n` +
+        '認証ファイル (.auth/opex-user.json) を再生成してください。');
+    }
+
     // OPD新規作成画面に遷移
     const proxyNumber = '-qa1';
     await opdCreatePage.goto(proxyNumber);
+
+    // 認証状態を再確認
+    const createPageUrl = opdCreatePage.page.url();
+    if (createPageUrl.includes('login') || createPageUrl.includes('auth') || createPageUrl.includes('signin')) {
+      throw new Error(`OPD作成画面で認証が切れています。現在のURL: ${createPageUrl}\n` +
+        '認証ファイル (.auth/opex-user.json) を再生成してください。');
+    }
+
     await opdCreatePage.waitForPageLoad();
 
     // 日付変数を作成
@@ -115,6 +130,15 @@ test.describe('Unit1_OPD_標準テスト_ID76', () => {
     const mrkunPage = await mrkunContext.newPage();
     const mrkunAdminPage = new MRkunAdminPage(mrkunPage);
 
+    // 認証状態を確認（MR君管理画面のトップページで確認）
+    await mrkunPage.goto('http://mrqa1:8888/admin/index.jsp');
+    await mrkunPage.waitForLoadState('networkidle');
+    const mrkunUrl = mrkunPage.url();
+    if (mrkunUrl.includes('login') || mrkunUrl.includes('auth') || mrkunUrl.includes('signin')) {
+      throw new Error(`MR君管理画面の認証が切れています。現在のURL: ${mrkunUrl}\n` +
+        '認証ファイル (.auth/mrkun-user.json) を再生成してください。');
+    }
+
     // ターゲット設定（2つのシステムコード）
     const systemCodes = '835279 901468';
     try {
@@ -149,8 +173,27 @@ test.describe('Unit1_OPD_標準テスト_ID76', () => {
     const opexPage2 = await opexContext2.newPage();
     const promotionMailPage = new OPDPromotionMailPage(opexPage2);
 
-    // 開封促進メールの配信準備（翌日09:00に設定）
-    await promotionMailPage.setupPromotionMail(opdId, undefined, '09:00:00', proxyNumber);
+    // 開封促進メール画面に遷移
+    await promotionMailPage.goto(opdId, proxyNumber);
+
+    // 認証状態を確認
+    const promotionMailUrl = opexPage2.url();
+    if (promotionMailUrl.includes('login') || promotionMailUrl.includes('auth') || promotionMailUrl.includes('signin')) {
+      throw new Error(`開封促進メール画面で認証が切れています。現在のURL: ${promotionMailUrl}\n` +
+        '認証ファイル (.auth/opex-user.json) を再生成してください。');
+    }
+
+    // プレビュー画像生成とステータス確認
+    await promotionMailPage.generatePreviewImage();
+
+    // 配信日時とテストメール設定、配信登録
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const deliveryDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    await promotionMailPage.setDeliveryDateTime(deliveryDate, '09:00:00');
+    await promotionMailPage.registerDelivery();
+    await promotionMailPage.waitForConfirmationStatus();
+    await promotionMailPage.confirmListIdSetting();
 
     await opexContext2.close();
 

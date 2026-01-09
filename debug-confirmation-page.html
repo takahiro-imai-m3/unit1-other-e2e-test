@@ -1,0 +1,230 @@
+<html><head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <link rel="stylesheet" type="text/css" href="/admin/restricted/css/admin.css">
+    <script src="//s.m3img.com/javascript/jquery/1.8.2/jquery.min.js" type="text/javascript"></script>
+    <title> TEST:mrqa1 feature/MRKUN-705_w749_appeal_vod_after_all_read Updated:2026-01-07 17:57:57 ワンポイント医療情報管理 - ターゲットリスト確認画面</title>
+    <style type="text/css">
+        ul {
+            list-style:none;
+        }
+        .button_area:after{
+            display: block;
+            clear: both;
+            content: "";
+        }
+        .button_area li {
+            float: left;
+        }
+        .button_area button {
+            min-width: 100px;
+            min-height: 20px;
+            margin-right: 20px;
+        }
+        .err_msg {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<style type="text/css">
+		body {
+		  background-color:#FFFAF0;
+		}
+		</style>
+	
+    <h1>ワンポイント医療情報管理 - ターゲットリスト確認画面 (テスト環境)</h1>
+
+
+    <h3>以下の内容で追加を行います。修正が必要な場合は最初からやり直してください。</h3>
+    <form id="main" action="targetUpdate.jsp" method="post" enctype="multipart/form-data">
+        
+            <input type="hidden" name="tmpInserted" value="true" style="">
+        
+            <input type="hidden" name="id" value="17596" style="">
+        
+            <input type="hidden" name="operation" value="add" style="">
+        
+            <input type="hidden" name="systemCds" value="835279
+901468" style="">
+        
+        <table class="simple" style="width:100%; table-layout:fixed;">
+            <colgroup>
+                <col width="200px">
+                <col>
+            </colgroup>
+            <tbody>
+            <tr>
+                <th> </th>
+                <th>システムコード</th>
+                <th>DCFコード</th>
+            </tr>
+            <tr>
+                <th>全件</th>
+                <td>
+                    既存：0件
+                    
+                        <p>
+                            <strong>今回の追加：2件</strong>
+                        </p>
+                    
+                </td>
+                <td>
+                    既存：0件
+                    
+                        <p>
+                            <strong>今回の追加：2件</strong>
+                        </p>
+                    
+                </td>
+            </tr>
+            <tr>
+                <th>DCF有（課金）</th>
+                <td>
+                    既存：0件
+                    
+                        <p>
+                            <strong>今回の追加：1件</strong>
+                        </p>
+                    
+                </td>
+                <td>
+                    既存：0件
+                    
+                        <p>
+                            <strong>今回の追加：1件</strong>
+                        </p>
+                    
+                </td>
+            </tr>
+            <tr>
+                <th>DCF無（課金）</th>
+                <td>
+                    既存：0件
+                    
+                </td>
+                <td>
+                     
+                </td>
+            </tr>
+            <tr>
+                <th>DCF有（非課金）</th>
+                <td>
+                    既存：0件
+                    
+                        <p>
+                            <strong>今回の追加：1件</strong>
+                        </p>
+                    
+                </td>
+                <td>
+                     
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <br>
+        <br>
+        対象サンプル
+        <br>
+        <table class="simple" style="width:100%; table-layout:fixed;">
+            <colgroup>
+                <col width="200px">
+                <col>
+            </colgroup>
+            <tbody>
+            <tr>
+                <th>システムコード</th>
+                <th>名前</th>
+            </tr>
+            
+            <tr>
+                <td> 0000835279</td>
+                <td> 医師 シーエー一</td>
+            </tr>
+            
+            <tr>
+                <td> 0000901468</td>
+                <td> 自動 王歩印都</td>
+            </tr>
+            
+            </tbody>
+        </table>
+        <br>
+        <div class="warning_area">
+            
+                <h2>警告メッセージがあります。内容を確認してください。</h2>
+                
+                
+                
+                
+                
+                
+                
+                
+
+
+                
+                
+                
+                
+                
+                
+                
+                
+                    <div>
+                        <h3 class="err_msg">追加しようとしているリスト内に、課金ユーザーが存在します。</h3>
+                        <ul>
+                            <li>
+                                <textarea cols="30" rows="10" style="">0000901468</textarea>
+                            </li>
+                        </ul>
+                    </div>
+                
+                <script>
+                    (jQuery)(function($){
+                        $('#warning_label').click(function() {
+                            if ($('#warning').prop("checked")) {
+                                $('#warning').prop("checked", false);
+                            } else {
+                                $('#warning').prop("checked", true);
+                            }
+                        });
+
+                        $('#warning').change(function() {
+                            if ($('#warning').prop("checked")) {
+                                $('#register_button').prop("disabled", false);
+                            } else {
+                                $('#register_button').prop("disabled", true);
+                            }
+                        });
+                    });
+                </script>
+                <ul>
+                    <li>
+                        <label id="warning_label">警告を無視して追加を行う場合は、チェックを付けてください。</label>
+                        <input type="checkbox" id="warning" name="okWarning" style="">
+                    </li>
+                </ul>
+            
+        </div>
+
+        <div class="button_area ">
+            <ul>
+                <li>
+                    <button type="button" onclick="window.close();">キャンセル</button>
+                </li>
+                <li>
+                    <button type="button" onclick="$('#main').submit();showLoading('処理中...');" id="register_button" disabled="disabled">実 行</button>
+                </li>
+            </ul>
+        </div>
+    </form>
+
+<div style="margin-top: 10px">
+    <hr>
+  <div>© M3, Inc.</div>
+</div>
+
+
+</body></html>
