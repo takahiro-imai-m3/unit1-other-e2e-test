@@ -54,23 +54,53 @@ export class OPDPromotionMailPage extends BasePage {
     await this.previewImageButton.click();
     console.log('✓ プレビュー画像生成を開始');
 
-    // 画像生成待ち（最大40秒）
-    await this.page.waitForTimeout(40000);
+    // ポーリングでプレビュー画像生成完了を確認（最大90秒、5秒間隔）
+    const maxAttempts = 18; // 18回 × 5秒 = 90秒
+    let attempt = 0;
+    let imageGenerated = false;
 
-    // 画像生成後、さらに待機して画面が安定するのを待つ
-    await this.page.waitForTimeout(5000);
+    while (attempt < maxAttempts && !imageGenerated) {
+      await this.page.waitForTimeout(5000);
+      attempt++;
 
-    // デバッグ: 現在の画面状態を確認
-    await this.page.screenshot({ path: 'debug-after-preview.png', fullPage: true });
-    const pageHtml = await this.page.content();
-    require('fs').writeFileSync('debug-after-preview.html', pageHtml);
+      // プレビュー画像最新更新日時が「未生成」でなくなったかを確認
+      imageGenerated = await this.page.evaluate(() => {
+        const updateTimeText = document.body.innerText;
+        return !updateTimeText.includes('プレビュー画像最新更新日時 : 未生成');
+      });
 
-    // 配信日付フィールドの状態を確認
-    const fieldDisabled = await this.page.evaluate(() => {
-      const field = document.querySelector('input[placeholder="既読促進メールの配信日付"]');
-      return field ? (field as HTMLInputElement).disabled : null;
-    });
-    console.log(`✓ プレビュー画像生成完了（配信日付フィールド disabled=${fieldDisabled}）`);
+      if (imageGenerated) {
+        console.log(`✓ プレビュー画像生成完了（${attempt * 5}秒後）`);
+
+        // 画像生成後、フィールドが有効化されるまでさらに少し待機
+        await this.page.waitForTimeout(3000);
+
+        // フィールドが有効化されたか確認
+        const fieldEnabled = await this.page.evaluate(() => {
+          const field = document.querySelector('input[placeholder="既読促進メールの配信日付"]');
+          return field ? !(field as HTMLInputElement).disabled : false;
+        });
+
+        if (fieldEnabled) {
+          console.log('✓ 配信日付フィールドが有効化されました');
+        } else {
+          console.log('⚠️  プレビュー画像は生成されましたが、フィールドはまだ無効です');
+        }
+
+        break;
+      } else {
+        console.log(`⏳ プレビュー画像生成中... (${attempt * 5}秒経過)`);
+      }
+    }
+
+    if (!imageGenerated) {
+      // タイムアウト時はデバッグ情報を出力
+      await this.page.screenshot({ path: 'debug-preview-timeout.png', fullPage: true });
+      const pageHtml = await this.page.content();
+      require('fs').writeFileSync('debug-preview-timeout.html', pageHtml);
+      console.log('⚠️  プレビュー画像が90秒経過しても生成されませんでした');
+      console.log('デバッグファイル保存: debug-preview-timeout.png, debug-preview-timeout.html');
+    }
   }
 
   /**
@@ -79,14 +109,32 @@ export class OPDPromotionMailPage extends BasePage {
    * @param time 時刻（HH:mm:ss形式）
    */
   async setDeliveryDateTime(date: string, time: string) {
-    // 配信日付フィールドが有効化されるまで待機（最大30秒）
-    await this.deliveryDateField.waitFor({ state: 'attached', timeout: 30000 });
-    await this.page.waitForFunction(() => {
+    // generatePreviewImageで既に有効化確認済みだが、念のため再確認
+    const isEnabled = await this.page.evaluate(() => {
       const field = document.querySelector('input[placeholder="既読促進メールの配信日付"]');
-      return field && !(field as HTMLInputElement).disabled;
-    }, { timeout: 30000 });
+      return field ? !(field as HTMLInputElement).disabled : false;
+    });
 
-    console.log('✓ 配信日付フィールドが有効化されました');
+    if (!isEnabled) {
+      console.log('⚠️  配信日付フィールドがまだ無効です。追加で待機します...');
+      // 追加で最大10秒待機（2秒間隔でポーリング）
+      let additionalAttempts = 0;
+      let fieldNowEnabled = false;
+      while (additionalAttempts < 5 && !fieldNowEnabled) {
+        await this.page.waitForTimeout(2000);
+        additionalAttempts++;
+        fieldNowEnabled = await this.page.evaluate(() => {
+          const field = document.querySelector('input[placeholder="既読促進メールの配信日付"]');
+          return field ? !(field as HTMLInputElement).disabled : false;
+        });
+      }
+
+      if (!fieldNowEnabled) {
+        throw new Error('配信日付フィールドが有効化されませんでした。プレビュー画像生成が完了していない可能性があります。');
+      }
+    }
+
+    console.log('✓ 配信日付フィールド有効化確認完了');
 
     // 配信日付フィールドをクリック
     await this.deliveryDateField.click();
