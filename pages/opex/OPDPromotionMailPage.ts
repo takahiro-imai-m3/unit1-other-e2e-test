@@ -191,9 +191,14 @@ export class OPDPromotionMailPage extends BasePage {
     console.log(`✓ テストメール送信先を設定: ${testEmail}`);
 
     // DCF有無を「無」に設定
-    // 日付ピッカーが邪魔している可能性があるため、forceオプションを使用
-    const dcfNoneSpan = this.page.locator('span').filter({ hasText: /^無$/ }).nth(1);
-    await dcfNoneSpan.click({ force: true });
+    // radiogroupから「無」ラジオボタンを選択（DCF有無の2番目の「無」）
+    const dcfRadios = await this.page.getByRole('radio', { name: '無' }).all();
+    if (dcfRadios.length > 0) {
+      // DCF有無の「無」は最初のもの
+      await dcfRadios[0].click({ force: true });
+    } else {
+      throw new Error('DCF「無」ラジオボタンが見つかりませんでした');
+    }
     await this.page.waitForTimeout(500);
     console.log('✓ DCF有無を「無」に設定');
 
