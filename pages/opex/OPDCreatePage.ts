@@ -307,6 +307,7 @@ export class OPDCreatePage extends BasePage {
     endTime: string;
     companyCode: string;
     pcDetailBody: string;
+    managementMemo?: string;  // 管理メモ（指定しない場合はtitleを使用）
     useMedicalAffairs?: boolean;
     useOneSourceCss?: boolean;
     personalOpdClientId?: string;  // Personal OPD用のClient ID（例: "37100"）
@@ -337,8 +338,8 @@ export class OPDCreatePage extends BasePage {
     // 配信終了日
     await this.clickDeliveryEndDate();
 
-    // 管理メモ
-    await this.setManagementMemo(data.title);
+    // 管理メモ（指定があればそれを使用、なければtitleを使用）
+    await this.setManagementMemo(data.managementMemo || data.title);
 
     // 会社選択
     await this.selectCompany(data.companyCode);
@@ -418,6 +419,222 @@ export class OPDCreatePage extends BasePage {
     await this.clickCreate();
 
     // 作成されたIDを取得
+    return await this.getCreatedId();
+  }
+
+  /**
+   * OPD編集画面に遷移
+   * @param opdId OPD ID
+   * @param proxyNumber プロキシ番号（デフォルト: '-qa1'）
+   */
+  async gotoEdit(opdId: string, proxyNumber: string = '-qa1') {
+    const url = `https://opex-qa${proxyNumber}.unit1.qa-a.m3internal.com/internal/mrf_management/opd/edit/${opdId}`;
+    await this.page.goto(url);
+    await this.waitForPageLoad();
+    console.log(`⏳ OPD編集画面に遷移: ID=${opdId}`);
+  }
+
+  /**
+   * 開封アクションを設定
+   * @param actionPoints アクションポイント
+   */
+  async setOpeningAction(actionPoints: string) {
+    await this.openingActionInput.fill(actionPoints);
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * PCディテール本文を入力
+   * @param content 本文内容
+   */
+  async fillPCDetail(content: string) {
+    await this.pcDetailBodyInput.fill(content);
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * PCディテール本文をSPディテール本文にコピー
+   */
+  async copyPCDetailToSPDetail() {
+    await this.copyPcToSpButton.click();
+    await this.page.waitForTimeout(1000);
+  }
+
+  /**
+   * QFB報告設定を選択
+   * @param isOutput true: 出力する、false: 出力しない
+   */
+  async selectQfbReporting(isOutput: boolean) {
+    if (isOutput) {
+      // QFB報告「出力する」を選択（必要に応じて実装）
+      throw new Error('QFB報告「出力する」は未実装');
+    } else {
+      // QFB報告「対象外（出力する）」を選択
+      await this.qfbOutputFalseRadio.click();
+      await this.page.waitForTimeout(500);
+    }
+  }
+
+  /**
+   * 合算チェック用会社を選択
+   * @param companyCode 会社コード（例: '9909000135'）
+   */
+  async selectBillingCompany(companyCode: string) {
+    // プルダウンをクリック
+    await this.page.locator('.el-select').filter({ hasText: '選択してください' }).click();
+    await this.page.waitForTimeout(1000);
+
+    // 会社コードで検索
+    const searchInput = this.page.locator('.el-select-dropdown input[type="text"]').last();
+    await searchInput.fill(companyCode);
+    await this.page.waitForTimeout(1000);
+
+    // 会社を選択
+    await this.page.locator('.el-select-dropdown__item span').filter({ hasText: companyCode }).click();
+    await this.page.waitForTimeout(1000);
+  }
+
+  /**
+   * 動画コンテンツを追加
+   * @param movieId 動画ID（例: 'dellegra_201501_01'）
+   * @param actionPoints アクションポイント
+   */
+  async addMovieContent(movieId: string, actionPoints: string) {
+    // コンテンツテーブルの動画行を探す
+    const movieRow = this.page.locator('table tbody tr').filter({ hasText: '動画' }).first();
+
+    // 動画IDを入力
+    const movieInput = movieRow.locator('input[type="text"]').first();
+    await movieInput.fill(movieId);
+    await this.page.waitForTimeout(500);
+
+    // アクションポイントを入力
+    const actionInput = movieRow.locator('input[type="text"]').nth(1);
+    await actionInput.fill(actionPoints);
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * その他コンテンツを追加
+   * @param url URL
+   * @param actionPoints アクションポイント
+   */
+  async addOtherContent(url: string, actionPoints: string) {
+    // コンテンツテーブルのその他行で空欄のものを探す
+    const otherRows = this.page.locator('table tbody tr').filter({ hasText: 'その他' });
+    const count = await otherRows.count();
+
+    for (let i = 0; i < count; i++) {
+      const row = otherRows.nth(i);
+      const urlInput = row.locator('input[type="text"]').first();
+      const currentValue = await urlInput.inputValue();
+
+      if (!currentValue || currentValue === '') {
+        // 空欄の行が見つかった
+        await urlInput.fill(url);
+        await this.page.waitForTimeout(500);
+
+        const actionInput = row.locator('input[type="text"]').nth(1);
+        await actionInput.fill(actionPoints);
+        await this.page.waitForTimeout(500);
+        return;
+      }
+    }
+
+    throw new Error('その他コンテンツの空き行が見つかりません');
+  }
+
+  /**
+   * OPD Quizコンテンツを追加
+   * @param url Quiz URL
+   * @param actionPoints アクションポイント
+   */
+  async addOpdQuizContent(url: string, actionPoints: string) {
+    const quizRow = this.page.locator('table tbody tr').filter({ hasText: 'OPD Quiz' }).first();
+
+    const urlInput = quizRow.locator('input[type="text"]').first();
+    await urlInput.fill(url);
+    await this.page.waitForTimeout(500);
+
+    const actionInput = quizRow.locator('input[type="text"]').nth(1);
+    await actionInput.fill(actionPoints);
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * MR君・myMR君登録コンテンツを追加
+   * @param url 登録URL
+   * @param actionPoints アクションポイント
+   */
+  async addMrRegistrationContent(url: string, actionPoints: string) {
+    const mrRow = this.page.locator('table tbody tr').filter({ hasText: 'MR君・myMR君登録' }).first();
+
+    const urlInput = mrRow.locator('input[type="text"]').first();
+    await urlInput.fill(url);
+    await this.page.waitForTimeout(500);
+
+    const actionInput = mrRow.locator('input[type="text"]').nth(1);
+    await actionInput.fill(actionPoints);
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * 添付文書コンテンツを追加
+   * @param url 添付文書URL
+   * @param actionPoints アクションポイント
+   */
+  async addAttachmentContent(url: string, actionPoints: string) {
+    const attachmentRow = this.page.locator('table tbody tr').filter({ hasText: '添付文書' }).first();
+
+    const urlInput = attachmentRow.locator('input[type="text"]').first();
+    await urlInput.fill(url);
+    await this.page.waitForTimeout(500);
+
+    const actionInput = attachmentRow.locator('input[type="text"]').nth(1);
+    await actionInput.fill(actionPoints);
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * 動画ファイルをアップロード（JW Player）
+   * @param opdId OPD ID
+   * @param fileName ファイル名（例: 'short movie.mp4'）
+   */
+  async uploadMovieFile(opdId: string, fileName: string) {
+    // 動画アップロード画面に遷移
+    const uploadUrl = `https://mrkun.m3.com/admin/restricted/jwplayer/upload.jsp?service=onepoint&movieId=${opdId}`;
+    await this.page.goto(uploadUrl);
+    await this.page.waitForLoadState('domcontentloaded');
+    await this.page.waitForTimeout(3000);
+
+    // ファイル選択
+    const fileInput = this.page.locator('input[type="file"]');
+    await fileInput.setInputFiles(fileName);
+    await this.page.waitForTimeout(2000);
+
+    // Upload & Encodeボタンをクリック
+    await this.page.locator('button', { hasText: 'Upload & Encode' }).click();
+    await this.page.waitForTimeout(15000); // アップロード完了待機
+
+    // 再度アップロード画面に遷移
+    await this.page.goto(uploadUrl);
+    await this.page.waitForLoadState('domcontentloaded');
+    await this.page.waitForTimeout(3000);
+
+    // 公開するボタンをクリック
+    await this.page.locator('button', { hasText: '公開する' }).click();
+    await this.page.waitForTimeout(3000);
+
+    console.log(`✓ 動画ファイルアップロード完了: ${fileName}`);
+  }
+
+  /**
+   * OPDを作成（簡易版）
+   * 新規作成ボタンをクリックして作成されたIDを返す
+   * @returns 作成されたOPD ID
+   */
+  async createOPD(): Promise<string> {
+    await this.clickCreate();
     return await this.getCreatedId();
   }
 }

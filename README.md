@@ -86,6 +86,9 @@ yarn playwright test --project=chromium-desktop-vpn-direct
 - **`tests/opdStandard/unit1-opd-id10-sp.spec.ts`** - Unit1_OPD_標準テスト_ID10 (SP版: CA表示確認) ✅
   - ID10, ID12を含む
   - 詳細: [docs/ID10-implementation.md](docs/ID10-implementation.md)
+- **`tests/opdStandard/unit1-opd-id15.spec.ts`** - Unit1_OPD_標準テスト_ID15 (アクションなし・MR登録なしテスト) ✅
+  - ID15, ID18, ID31, ID34を含む
+  - 詳細: [docs/ID15-implementation.md](docs/ID15-implementation.md)
 - `tests/opdStandard/unit1-opd-id38.spec.ts` - Unit1_OPD_標準テスト_ID38 (Android ポートレート)
 - `tests/opdStandard/unit1-opd-id39.spec.ts` - Unit1_OPD_標準テスト_ID39 (Android ランドスケープ)
 - `tests/opdStandard/unit1-opd-id40.spec.ts` - Unit1_OPD_標準テスト_ID40 (iOS ポートレート)
