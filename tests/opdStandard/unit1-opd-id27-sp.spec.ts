@@ -87,7 +87,9 @@ test.describe('Unit1_OPD_標準テスト_ID27_SP', () => {
       companyCode: '9909000135',
       pcDetailBody: 'PCディテール本文コンテンツ（QFB回答機能テスト・SP版）',
       useQfb: true,
-      // qfbAnswerLimit は指定しない → 回答上限なし
+      qfbTitle: 'QFB回答テスト（回答上限なし）',
+      qfbDeadline: generateDateString('YYYY/MM/DD', 7) + ' 23:59',  // 7日後の23:59
+      qfbAnswerLimit: '0',  // 回答上限なし
     });
 
     console.log(`✓ OPD作成完了（QFB機能ON、回答上限なし）: ID=${opdId}, タイトル=${opdTitle}`);

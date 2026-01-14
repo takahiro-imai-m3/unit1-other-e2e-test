@@ -60,15 +60,27 @@ export class OPDEditPage extends BasePage {
   }
 
   /**
-   * PCディテール本文を更新してSPにコピー
+   * PCディテール本文のみを更新（SPにはコピーしない）
    * @param content 新しい本文内容
    */
-  async updatePcDetailBodyAndCopy(content: string) {
+  async updatePcDetailBody(content: string) {
     // 既存の内容をクリア
     await this.pcDetailBodyInput.clear();
 
     // 新しい内容を入力
     await this.pcDetailBodyInput.fill(content);
+
+    // 入力完了を待つ
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * PCディテール本文を更新してSPにコピー
+   * @param content 新しい本文内容
+   */
+  async updatePcDetailBodyAndCopy(content: string) {
+    // PCディテール本文を更新
+    await this.updatePcDetailBody(content);
 
     // SPにコピー（確認ダイアログが表示される）
     await this.copyPcToSpButton.click();

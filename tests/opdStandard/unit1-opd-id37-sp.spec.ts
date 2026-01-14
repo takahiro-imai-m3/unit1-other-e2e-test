@@ -87,6 +87,8 @@ test.describe('Unit1_OPD_標準テスト_ID37_SP', () => {
       companyCode: '9909000135',
       pcDetailBody: 'PCディテール本文コンテンツ（QFB回答上限テスト・SP版）',
       useQfb: true,
+      qfbTitle: 'QFB回答テスト（回答上限1名）',
+      qfbDeadline: generateDateString('YYYY/MM/DD', 7) + ' 23:59',  // 7日後の23:59
       qfbAnswerLimit: '1',  // 回答上限: 1
     });
 
