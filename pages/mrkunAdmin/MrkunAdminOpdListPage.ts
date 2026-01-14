@@ -41,4 +41,37 @@ export class MrkunAdminOpdListPage {
     await this.page.goto(`https://mrkun.m3.com/admin/restricted/mt/OnePointDetail/targetEdit.jsp?id=${opdId}`);
   }
 
+  /**
+   * OPD IDで絞り込んだOPD編集画面に遷移する
+   * @param opdId - OPD ID
+   */
+  async gotoOpdDetailByOpdId(opdId: string): Promise<void> {
+    const url = `https://mrkun.m3.com/admin/restricted/mt/OnePointDetail/list.jsp?pointCompanyCd=&productName=&memo=&opdId=${opdId}&action=view`;
+    await this.page.goto(url);
+    await this.page.waitForLoadState('domcontentloaded');
+    await this.page.waitForTimeout(2000);
+    console.log(`⏳ OPD管理画面に遷移: ${opdId}`);
+  }
+
+  /**
+   * 開封数を取得する
+   * @returns 開封数（total: 総開封数, charged: うち課金）
+   */
+  async getOpenedCount(): Promise<{ total: number; charged: number }> {
+    // XPath: //*[@id="widthpx"]/table[2]/tbody/tr/td[8]/span[1] - 総開封数
+    const totalSpan = this.page.locator('xpath=//*[@id="widthpx"]/table[2]/tbody/tr/td[8]/span[1]');
+    const totalText = await totalSpan.innerText();
+    const total = parseInt(totalText, 10);
+
+    // XPath: //*[@id="widthpx"]/table[2]/tbody/tr/td[8]/span[2] - (うち課金N)
+    const chargedSpan = this.page.locator('xpath=//*[@id="widthpx"]/table[2]/tbody/tr/td[8]/span[2]');
+    const chargedText = await chargedSpan.innerText();
+    // "(うち課金N)" から数値を抽出
+    const chargedMatch = chargedText.match(/\d+/);
+    const charged = chargedMatch ? parseInt(chargedMatch[0], 10) : 0;
+
+    console.log(`📊 開封数: ${total} (うち課金${charged})`);
+    return { total, charged };
+  }
+
 }

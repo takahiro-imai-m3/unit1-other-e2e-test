@@ -1,0 +1,507 @@
+id: v3KPglJ2EmrrGw6AGLZgIA-j:6
+name: Unit1_OPD_標準テスト_ID5
+description: >-
+  ■OPD標準テスト * ID1、5、6、23、24、29、30 ■前提条件 * Unit1_OPD_標準テスト_事前ID5_QA山本を実施する ■条件 *
+  メッセージ作成方法: 新規作成 * 対象者: 課金対象 * 確認箇所: メッセージ一覧 * 確認箇所: メッセージ詳細 * アクション: あり *
+  開封状況: 未開封 * 開封状況: 開封済 ■期待値 *
+  メッセージ一覧、詳細にメッセージ情報（タイトル、クライアント名、顔写真、進呈アクション数など)が正しく表示されること * 開封数がカウントアップされないこと
+  * 開封数がカウントアップされること * 開封前は設定された開封アクション数が加算されないこと * 開封後は設定された開封アクション数が加算されること
+steps:
+  - Echo:
+      description: 'Echo: "####OPD管理画面にログインする"'
+  - SetViewport:
+      description: Set viewport size to width 1000 and height 700
+  - Echo:
+      description: 'Echo: "flow.urlがdefaultの場合はapp.urlへ、flow.urlが設定されていれば、そのURLへ遷移する"'
+  - If:
+      description: IF value of variable "flow.url" equals "?"
+  - VisitUrl:
+      description: Visit URL assigned to variable "app.url"
+  - Else:
+      description: ELSE
+  - VisitUrl:
+      description: Visit URL assigned to variable "flow.url"
+  - End:
+      description: END
+  - Wait:
+      description: Wait for 3 seconds
+  - EnterText:
+      description: Insert value of variable "flow.UserID" into the "Username" text field
+  - EnterText:
+      description: Insert value of variable "flow.Password" into the "Password" text field
+  - Click:
+      description: Click on the "submit" button
+  - CreateVariable:
+      description: >-
+        Evaluate reusable JavaScript snippet
+        "Unit1_URL_Remove_value_from_string2" and assign it to variable "proxy"
+  - VisitUrl:
+      description: >-
+        Visit URL
+        "https://opex-qa1.unit1.qa-a.m3internal.com/internal/dashboard"
+      annotation:
+        description: OPDダッシュボード画面に遷移(OPD編集画面に直接遷移すると失敗することがあるため)
+  - Wait:
+      description: Wait for 2 seconds
+  - VisitUrl:
+      description: >-
+        Visit URL
+        "https://opex-qa{{@proxy}}.unit1.qa-a.m3internal.com/internal/mrf_management/opd/create"
+      annotation:
+        description: OPD新規作成画面に遷移
+  - Wait:
+      description: Wait for 10 seconds
+  - If:
+      description: IF "innerText" of the <label> element with text "ID" equals "ID"
+  - Else:
+      description: ELSE
+  - Navigate:
+      description: Page reload performed
+  - WaitUntil:
+      description: >-
+        Wait up to 15 seconds until target element matching Text attribute is
+        present
+  - End:
+      description: END
+  - Echo:
+      description: 'Echo: "###メッセージを作成"'
+  - CreateVariable:
+      description: >-
+        Evaluate reusable JavaScript snippet "Unit1_getDate" and assign it to
+        variable "today"
+      annotation:
+        description: 変数の設定_"Unit1_getDate"で値を取得する_"today"
+  - CreateVariable:
+      description: >-
+        Generate a random string with format
+        "{{@today.yearNumeric}}/{{@today.monthTwoDigit}}/{{@today.dayTwoDigit}}"
+        and assign it to variable "opd_start_time"
+      annotation:
+        description: 変数の設定_yyyy/mm/ddの形式で値を取得する_変数_"opd_start_time"
+  - CreateVariable:
+      description: >-
+        Generate a random string with format
+        "{{@today.yearNumeric}}{{@today.monthTwoDigit}}{{@today.dayTwoDigit}}"
+        and assign it to variable "opd_message_number"
+      annotation:
+        description: 変数の設定_YYYYMMDD形式で日付取得_変数_ "opd_message_number"
+  - Wait:
+      description: Wait for 2 seconds
+  - EnterText:
+      description: Enter "自動テスト株式会社" in the "会社名" text field
+      annotation:
+        description: 会社名に自動テスト株式会社と入力
+  - EnterText:
+      description: Enter "自動テスト薬品" in the "製品名" text field
+      annotation:
+        description: 製品名に自動テスト薬品と入力
+  - CreateVariable:
+      description: >-
+        Generate a random string with format
+        "{{@opd_message_number}}{{digit:7}}" and assign it to variable
+        "opd_request_form_id"
+      annotation:
+        description: 変数の設定_"{{@opd_message_number}}{{digit:7}}"_変数名_ "opd_request_form_id"
+  - EnterText:
+      description: >-
+        Insert value of variable "opd_request_form_id" into the "依頼フォームID" text
+        field
+      annotation:
+        description: 変数を使用"opd_request_form_id"_依頼フォームIDに{{現在日付}}{{digit:7}}を入力
+  - EnterText:
+      description: Enter "100" in a text field
+      annotation:
+        description: 開封単価に"100"を入力
+  - Click:
+      description: >-
+        Click on first <span> element matching css query
+        "#isInDelivery_deliveryStatusDisplayed > span.el-radio__label"
+      annotation:
+        description: 配信ステータスの表示にチェック
+  - CreateVariable:
+      description: >-
+        Generate a random string with format
+        "自動テストタイトル{{@flow.ID}}_{{@opd_message_number}}_{{alnum:3}}" and assign
+        it to variable "opd_message_title"
+      annotation:
+        description: >-
+          変数の設定_"自動テストタイトル{{@flow.ID}}_{{@opd_message_number}}_{{alnum:3}}"_"opd_message_title"
+  - EnterText:
+      description: Insert value of variable "opd_message_title" into the "タイトル" text field
+      annotation:
+        description: 変数の使用 "opd_message_title"_自動テストタイトルを入力
+  - EnterText:
+      description: Enter "10" in a text field
+      annotation:
+        description: 開封数リミットに"10"を入力
+  - Click:
+      description: Click on the "開始日時" text field
+      annotation:
+        description: 開始日時を押下
+  - Click:
+      description: Click on the "日付を選択" text field
+      annotation:
+        description: 日付を選択を押下
+  - EnterText:
+      description: Insert value of variable "opd_start_time" into the "日付を選択" text field
+      annotation:
+        description: 変数を使用"opd_start_time"_現在日時を入力
+  - Click:
+      description: Click on the "時間を選択" text field
+      annotation:
+        description: 時間を選択を押下
+  - EnterText:
+      description: Enter "00:00:00" in the "時間を選択" text field
+      annotation:
+        description: 00:00:00を入力
+  - Click:
+      description: Click on the "OK" button
+      annotation:
+        description: OK押下
+  - Click:
+      description: Click on the "OK" button
+      annotation:
+        description: OK押下
+  - Click:
+      description: Click on the "終了日時" text field
+      annotation:
+        description: 終了日時を押下
+  - Click:
+      description: Click on the "日付を選択" text field
+      annotation:
+        description: 日付を選択を押下
+  - EnterText:
+      description: Insert value of variable "opd_start_time" into the "日付を選択" text field
+      annotation:
+        description: 変数を使用"opd_start_time"_現在日時を入力
+  - Click:
+      description: Click on the "時間を選択" text field
+      annotation:
+        description: 時間を選択を押下
+  - EnterText:
+      description: Enter "23:59:59" in the "時間を選択" text field
+      annotation:
+        description: 23:59:59を入力
+  - Click:
+      description: Click on the "OK" button
+      annotation:
+        description: OK押下
+  - Click:
+      description: Click on the "OK" button
+      annotation:
+        description: OK押下
+  - Click:
+      description: Click on the "配信終了日" button
+      annotation:
+        description: 配信終了日押下
+  - EnterText:
+      description: Insert value of variable "opd_message_title" into the "管理メモ" text field
+      annotation:
+        description: 管理メモに"opd_message_title"を入力
+  - Click:
+      description: >-
+        Click on first <span> element matching css query
+        "#messageType_messageTypeNormalOpd > span.el-radio__label"
+      annotation:
+        description: メッセージ種類の通常opd"にチェック
+  - EnterText:
+      description: Enter "50" in a text field
+      annotation:
+        description: 開封アクションに"50"を入力
+  - Click:
+      description: Click on the "選択してください" text field
+      annotation:
+        description: Click on the "選択してください" text field_合算チェック用会社押下
+  - EnterText:
+      description: >-
+        Enter "9909000135" in the "9909000135:
+        製薬会社グループ名・文字数多めキューエーセイヤクカブシキガイシャＡＢＣここまでで35文字" text field
+  - Click:
+      description: >-
+        Click on the <span> element with text "9909000135:
+        製薬会社グループ名・文字数多めキューエーセイヤクカブシキガイシャＡＢＣここまでで35文字"
+  - Click:
+      description: >-
+        Click on first <span> element matching css query
+        "#useEmbeddedMovie_doUseEmbeddedMoviePcSpOneTag > span.el-radio__label"
+      annotation:
+        description: 埋め込み動画の"利用する（PCもSPもワンタグ）"にチェック
+  - EnterText:
+      description: Enter "PCディテール本文コンテンツ" in the "PCディテール本文(HTML)" text field
+  - Click:
+      description: Click on the "PCディテール本文をSPディテール本文にコピーする" button
+      annotation:
+        description: '"PCディテール本文をSPディテール本文にコピーする"を押下'
+  - Click:
+      description: >-
+        Click on first <span> element matching css query
+        "#reportingQfbOutput_reportingQfbOutputFalse > span.el-radio__label"
+      annotation:
+        description: QFB100回答無償CP_対象外（QFB回答データを出力する）をチェック
+  - Click:
+      description: Click on the "新規作成" button
+      annotation:
+        description: 新規作成ボタンを押下
+  - Click:
+      description: Click on the "OK" button
+      annotation:
+        description: OK押下
+  - Wait:
+      description: Wait for 20 seconds
+  - AssertDoesNotEqual:
+      description: Assert "value" of the "ID" text field does not equal "0"
+      annotation:
+        description: IDが"0"でないことを確認(0以外のIDが作成される)
+  - CreateVariable:
+      description: >-
+        Extract "value" from the "ID" text field and assign it to variable
+        "opd_created_id5"
+      annotation:
+        description: 変数の設定_ID番号を取得_変数名_ "opd_created_id5"
+  - CreateVariable:
+      description: >-
+        Generate a random string with format
+        "https://mrkun.m3.com/admin/restricted/mt/OnePointDetail/list.jsp?pointCompanyCd=&productName=&memo=&opdId={{@opd_created_id5}}&action=view"
+        and assign it to variable "opd_admin_search5"
+      annotation:
+        description: >-
+          変数の設定_
+          "https://mrkun.m3.com/admin/restricted/mt/OnePointDetail/list.jsp?pointCompanyCd=&productName=&memo=&opdId={{@opd_created_id5}}&action=view"_変数名_
+          "opd_admin_search5"
+  - VisitUrl:
+      description: Visit URL assigned to variable "opd_admin_search5"
+      annotation:
+        description: URLにアクセスより変数指定で"opd_admin_search5"を選択し、OPD一覧画面に遷移し、OPDIDで検索状態にする
+  - Wait:
+      description: Wait for 5 seconds
+  - Click:
+      description: >-
+        Click on the link "変更..." to
+        https://mrkun.m3.com/ad...Name=&memo=&action=view#
+      annotation:
+        description: 変更...を押下
+  - AwaitTab:
+      description: >-
+        Wait for the tab with URL
+        "https://mrkun.m3.com/admin/restricted/mt/OnePointDetail/targetEdit.jsp?id=6866"
+      annotation:
+        description: ワンポイント医療情報管理 - ターゲットリスト変更画面表示までWait
+  - SwitchContext:
+      description: >-
+        Switch context to the tab "TEST:mrqa1 MRKUN_5_6_67 Updated:2022-07-06
+        13:36:51 ワンポイント医療情報管理 - ターゲットリスト変更画面"
+      annotation:
+        description: ワンポイント医療情報管理 - ターゲットリスト変更画面"にスイッチ
+  - EnterText:
+      description: Insert value of variable "flow.sys_code" into the "ID" text field
+      annotation:
+        description: '{{@flow.sys_code}}システムコードを入力'
+  - Click:
+      description: Click on a button
+      annotation:
+        description: 追加を押下
+  - Click:
+      description: Click on the "警告を無視して追加を行う場合は、チェックを付けてください。" checkbox
+      annotation:
+        description: '"警告を無視して追加を行う場合は、チェックを付けてください。"にチェック'
+  - Click:
+      description: Click on the "実 行" button
+      annotation:
+        description: '"実 行"を押下'
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of the <h1> element with text "ワンポイント医療情報管理 -
+        ターゲットリスト変更結果画面 (テスト環境)" equals "ワンポイント医療情報管理 - ターゲットリスト変更結果画面 (テスト環境)"
+      annotation:
+        description: Assert_"ワンポイント医療情報管理 - ターゲットリスト変更結果画面 (テスト環境)"
+  - SwitchContext:
+      description: Switch context to the initial tab
+      annotation:
+        description: OPD一覧に遷移
+  - Click:
+      description: Click on the <h1> element with text "ワンポイント医療情報管理 - 一覧画面 (テスト環境)"
+      annotation:
+        description: スイッチ確認
+  - Echo:
+      description: 'Echo: "###メッセージを作成"'
+  - VisitUrl:
+      description: >-
+        Visit URL
+        "https://opex-qa{{@proxy}}.unit1.qa-a.m3internal.com/internal/mrf_management/opd/edit/{{@opd_created_id5}}?from_mrkun_view=true&memo=opd_%E6%A8%99%E6%BA%96%E3%83%86%E3%82%B9%E3%83%88&showDeleted=&pointCompanyCd=&productName=&action=view&opdId=""
+      annotation:
+        description: OPD編集画面に遷移
+  - Wait:
+      description: Wait for 3 seconds
+  - EnterText:
+      description: Enter "" in the "PCディテール本文(HTML)" text field
+      annotation:
+        description: ディテール本文(HTML)を削除
+  - EnterText:
+      description: Enter "動画コンテンツ" in the "PCディテール本文(HTML)" text field
+      annotation:
+        description: ディテール本文(HTML)を入力
+  - Click:
+      description: Click on the "PCディテール本文をSPディテール本文にコピーする" button
+      annotation:
+        description: '"PCディテール本文をSPディテール本文にコピーする"を押下'
+  - Click:
+      description: Click on the "OK" button
+      annotation:
+        description: '"OK"押下'
+  - Click:
+      description: Click on the "更新" button
+      annotation:
+        description: 更新を押下
+  - Click:
+      description: Click on the "OK" button
+      annotation:
+        description: OK押下
+  - Echo:
+      description: 'Echo: "###ID23_開封数がカウントアップされないこと"'
+  - VisitUrl:
+      description: >-
+        Visit URL
+        "https://mrkun.m3.com/admin/restricted/mt/OnePointDetail/list.jsp?pointCompanyCd=&productName=&memo=&opdId={{@opd_created_id5}}&action=view"
+      annotation:
+        description: OPDIDで絞り込んだOPD編集画面に遷移
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of first <span> element matching xpath
+        "//*[@id="widthpx"]/table[2]/tbody/tr/td[8]/span[1]" equals "0"
+      annotation:
+        description: Assert_開封数"0"
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of first <span> element matching xpath
+        "//*[@id="widthpx"]/table[2]/tbody/tr/td[8]/span[2]" equals "(うち課金0)"
+      annotation:
+        description: Assert_"(うち課金0)"
+  - Echo:
+      description: 'Echo: "###ID1_課金対象者となる会員で新規作成したメッセージが一覧に表示されること"'
+  - Echo:
+      description: 'Echo: "###ID5_メッセージ一覧にメッセージ情報（タイトル、クライアント名、顔写真、進呈アクション数など)が正しく表示されること"'
+  - Echo:
+      description: 'Echo: "###m3.comにログイン"'
+  - VisitUrl:
+      description: Visit URL "https://www.m3.com/"
+      annotation:
+        description: Ｍ3.comに遷移
+  - Wait:
+      description: Wait for 3 seconds
+  - EnterText:
+      description: Enter "mrqa_auto046" in the text field with ID "loginId"
+      annotation:
+        description: ログインIDに"mrqa_auto046"と入力
+  - EnterText:
+      description: Enter a password in the text field with ID "password"
+      annotation:
+        description: パスワードに"Autoqa1!"と入力
+  - Click:
+      description: Click on the "ログイン" button
+      annotation:
+        description: ログイン押下
+  - VisitUrl:
+      description: Visit URL "https://mrkun.m3.com/mt/onepoint/top.htm?tc=sub-m3com"
+      annotation:
+        description: OPDに遷移
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of the link "自動テストタイトル20230322" to
+        https://www.m3.com/_x_/....0&sort=unread&mkep=list equals the value of
+        the variable "opd_message_title"
+      annotation:
+        description: Assert_"opd_message_title"
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of the first <td> element that meets the selected
+        criteria equals "自動テスト株式会社"
+      annotation:
+        description: Assert_"自動テスト株式会社"
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of the first <td> element that meets the selected
+        criteria equals the value of the variable "opd_start_time"
+      annotation:
+        description: Assert_受信日_"opd_start_time"
+  - AssertGreaterThanOrEquals:
+      description: >-
+        Assert "innerText" of the <td> element with text "155" is greater than
+        or equal to "50"
+      annotation:
+        description: Assert_開封"50"以上
+  - Echo:
+      description: 'Echo: "###ID30(ID29)_開封後は設定された開封アクション数が加算されること"'
+      annotation:
+        description: 'Echo: "###ID30(ID29)_開封後は設定された開封アクション数が加算されること"'
+  - CreateVariable:
+      description: >-
+        Extract "innerText" from the <span> element with text "240" and assign
+        it to variable "opd_action"
+      annotation:
+        description: 変数の設定_アクションポイント_"opd_action"
+  - CreateVariable:
+      description: >-
+        Evaluate one-time JavaScript snippet "opd_actionCalc" and assign it to
+        variable "opd_opened_action"
+      annotation:
+        description: 変数の設定_アクションポイント50を加算_"opd_opened_action"
+  - VisitUrl:
+      description: >-
+        Visit URL
+        "https://mrkun.m3.com/mt/onepoint/{{@opd_created_id5}}/view.htm?pageContext=opd1.0&sort=unread&mkep=list"
+      annotation:
+        description: 作成したOPDに遷移
+  - Wait:
+      description: Wait for 5 seconds
+  - AssertGreaterThanOrEquals:
+      description: >-
+        Assert "innerText" of the <span> element with text "290" is greater than
+        or equal to the value of the variable "opd_opened_action"
+      annotation:
+        description: Assert_"opd_opened_action"
+  - Echo:
+      description: 'Echo: "###ID6_メッセージ詳細にメッセージ情報（タイトル、クライアント名、顔写真、進呈アクション数など)が正しく表示されること"'
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of the <h1> element with text "ワンポイント医療情報" equals
+        "ワンポイント医療情報"
+      annotation:
+        description: Assert_"ワンポイント医療情報"
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of the <dt> element with text "自動テストタイトル20230322"
+        equals the value of the variable "opd_message_title"
+      annotation:
+        description: Assert_"opd_message_title"
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of the <dd> element with text "自動テスト株式会社" equals
+        "自動テスト株式会社"
+      annotation:
+        description: Assert_"自動テスト株式会社"
+  - AssertEquals:
+      description: >-
+        Assert "src" of a <img> element equals
+        "https://mrkun.m3.com/mt-img/onepoint/..."
+      annotation:
+        description: Assert "src"_"https://mrkun.m3.com/mt-img/onepoint/..."
+  - Echo:
+      description: 'Echo: "###ID24_開封数がカウントアップされること"'
+  - VisitUrl:
+      description: >-
+        Visit URL
+        "https://mrkun.m3.com/admin/restricted/mt/OnePointDetail/list.jsp?pointCompanyCd=&productName=&memo=&opdId={{@opd_created_id5}}&action=view"
+      annotation:
+        description: OPDIDを入力した状態でOPD管理-一覧画面に遷移
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of first <span> element matching xpath
+        "//*[@id="widthpx"]/table[2]/tbody/tr/td[8]/span[1]" equals "1"
+      annotation:
+        description: Assert_開封数_"1"
+  - AssertEquals:
+      description: >-
+        Assert "innerText" of first <span> element matching xpath
+        "//*[@id="widthpx"]/table[2]/tbody/tr/td[8]/span[2]" equals "(うち課金1)"
+      annotation:
+        description: Assert_"(うち課金1)"
