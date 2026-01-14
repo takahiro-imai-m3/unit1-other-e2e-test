@@ -83,9 +83,6 @@ yarn playwright test --project=chromium-desktop-vpn-direct
 - **`tests/opdStandard/unit1-opd-id5-pc.spec.ts`** - Unit1_OPD_標準テスト_ID5 (PC版: メッセージ一覧・詳細表示、開封アクション確認) ✅
   - ID1, ID5, ID6, ID23, ID24, ID29, ID30を含む
   - 詳細: [docs/ID5-PC-implementation.md](docs/ID5-PC-implementation.md)
-- **`tests/opdStandard/unit1-opd-id10-sp.spec.ts`** - Unit1_OPD_標準テスト_ID10 (SP版: CA表示確認) ✅
-  - ID10, ID12を含む
-  - 詳細: [docs/ID10-implementation.md](docs/ID10-implementation.md)
 - **`tests/opdStandard/unit1-opd-id15.spec.ts`** - Unit1_OPD_標準テスト_ID15 (アクションなし・MR登録なしテスト) ✅
   - ID15, ID18, ID31, ID34を含む
   - 詳細: [docs/ID15-implementation.md](docs/ID15-implementation.md)
