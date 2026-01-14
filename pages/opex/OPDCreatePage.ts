@@ -34,7 +34,11 @@ export class OPDCreatePage extends BasePage {
 
   // QFB (Quick Feedback)
   readonly qfbUseSwitch: Locator;
+  readonly qfbTitleInput: Locator;
+  readonly qfbDeadlineInput: Locator;
   readonly qfbAnswerLimitInput: Locator;
+  readonly qfbQuestion1TypeSelect: Locator;
+  readonly qfbQuestion1ContentInput: Locator;
 
   // 日時ピッカー
   readonly startDateTimeField: Locator;
@@ -91,10 +95,25 @@ export class OPDCreatePage extends BasePage {
     this.personalInsertTextSwitch = page.locator('label:has-text("差し込み文言オプション")').locator('..').locator('.el-switch');
 
     // QFB (Quick Feedback)
-    // QFB利用するスイッチ
-    this.qfbUseSwitch = page.locator('label:has-text("QFB設定")').locator('..').locator('.el-switch').first();
-    // QFB回答上限数
+    // QFB利用するスイッチ - クイックフィードバックセクションの利用するスイッチ
+    // ページ構造: generic [ref=e824] > generic [ref=e825]: クイックフィードバック > ... > switch "利用する"
+    // 「クイックフィードバック」の見出しを含むセクション内の最初のスイッチ
+    this.qfbUseSwitch = page.locator('text=クイックフィードバック').locator('..').locator('.el-switch').first();
+    // QFB必須フィールド
+    // ページには "*タイトル" (OPDタイトル) と "タイトル" (QFBタイトル) の2つがあるため、
+    // 「クイックフィードバック詳細」セクション内のタイトルを選択
+    // タイトル: (必須) 最大400文字
+    this.qfbTitleInput = page.locator('text=クイックフィードバック詳細').locator('..').getByRole('textbox', { name: 'タイトル' });
+    // 回答期限: (必須) yyyy/mm/dd hh:mm 形式
+    this.qfbDeadlineInput = page.getByRole('textbox', { name: '回答期限' });
+    // 回答上限数: (必須) 上限を設定しない場合は 0 を入力
     this.qfbAnswerLimitInput = page.getByRole('textbox', { name: '回答上限数' });
+    // Q1質問タイプセレクト - comboboxとして表示されるElement UIコンポーネント
+    // ページ構造: text: Q1 > combobox [ref=e893]: option "使用しない" [selected]
+    this.qfbQuestion1TypeSelect = page.locator('text=Q1').locator('..').getByRole('combobox').first();
+    // Q1質問内容入力フィールド - Q1タイプ選択後に表示される
+    // ページ構造: text: 質問内容 > textbox "質問内容" [ref=e903]
+    this.qfbQuestion1ContentInput = page.getByRole('textbox', { name: '質問内容' });
 
     // 日時ピッカー (Playwright Codegenで生成されたセレクターを使用)
     this.startDateTimeField = page.getByRole('textbox', { name: '*開始日時' });
@@ -113,10 +132,10 @@ export class OPDCreatePage extends BasePage {
     this.companySelectField = page.locator('label:has-text("合算チェック用会社")').locator('..').getByPlaceholder('選択してください');
     this.companySearchInput = page.locator('.el-select-dropdown__wrap input[type="text"]');
 
-    // ID表示フィールド
-    this.idField = page.locator('input').filter({ hasText: 'ID' }).or(
-      page.locator('input[name="id"], input#id')
-    );
+    // ID表示フィールド - disabled なテキストボックス
+    // HTML構造: <input id="id" type="text" disabled="disabled" class="el-input__inner"/>
+    // "ID"という名前のtextboxが複数あるため、CSS IDセレクター #id を使用
+    this.idField = page.locator('#id');
   }
 
   /**
@@ -133,16 +152,16 @@ export class OPDCreatePage extends BasePage {
    * ID項目が表示されない場合はリロード
    */
   async waitForPageLoad() {
-    await this.page.waitForTimeout(10000);
-
-    // IDラベルが表示されているか確認
-    const idLabel = this.page.locator('label', { hasText: 'ID' });
-    const isVisible = await idLabel.isVisible().catch(() => false);
-
-    if (!isVisible) {
-      // ページをリロード
+    // IDフィールドが表示されるまで待機（最大30秒）
+    // ページスナップショットで確認: textbox "ID" [disabled]
+    try {
+      await this.idField.waitFor({ state: 'visible', timeout: 30000 });
+      console.log('✓ OPD作成ページのロードが完了しました');
+    } catch (error) {
+      console.log('⚠️  IDフィールドが30秒以内に表示されませんでした。ページをリロードします...');
       await this.page.reload();
-      await this.page.waitForSelector('label:has-text("ID")', { timeout: 15000 });
+      await this.idField.waitFor({ state: 'visible', timeout: 30000 });
+      console.log('✓ OPD作成ページのロードが完了しました（リロード後）');
     }
   }
 
@@ -271,11 +290,45 @@ export class OPDCreatePage extends BasePage {
    * OPDを新規作成
    */
   async clickCreate() {
+    console.log('🔘 新規作成ボタンをクリックします...');
+    // 新規作成ボタンをクリック
     await this.createButton.click();
-    await this.confirmOkButton.click();
 
-    // 作成完了を待つ（20秒）
-    await this.page.waitForTimeout(20000);
+    // 確認ダイアログが表示されるまで待機
+    console.log('⏳ 確認ダイアログの表示を待機しています...');
+    await this.page.waitForTimeout(1000);
+
+    // 確認ダイアログのOKボタンが表示されるまで待機してクリック
+    try {
+      await this.confirmOkButton.waitFor({ state: 'visible', timeout: 5000 });
+      console.log('✓ 確認ダイアログが表示されました。OKボタンをクリックします...');
+      await this.confirmOkButton.click();
+    } catch (error) {
+      console.error('❌ 確認ダイアログが5秒以内に表示されませんでした');
+      throw error;
+    }
+
+    // OKボタンクリック後、ダイアログが閉じるまで待機
+    console.log('⏳ 確認ダイアログが閉じるのを待機しています...');
+    await this.page.waitForTimeout(2000);
+
+    // 作成完了を待つ - IDフィールドに値が設定されるまで待機（最大60秒）
+    console.log('⏳ OPD作成処理の完了を待機しています（IDフィールドに値が設定されるまで、最大60秒）...');
+    try {
+      await this.page.waitForFunction(
+        () => {
+          const element = document.querySelector('#id') as HTMLInputElement;
+          if (!element) return false;
+          const value = element.value;
+          return value && value !== '0' && value.trim() !== '';
+        },
+        { timeout: 60000 }
+      );
+      console.log('✓ OPD作成完了を検出しました');
+    } catch (error) {
+      console.error('❌ 60秒以内にOPD作成が完了しませんでした');
+      // エラーを投げずに継続（getCreatedId()で再度チェックする）
+    }
   }
 
   /**
@@ -283,9 +336,41 @@ export class OPDCreatePage extends BasePage {
    * @returns OPD ID
    */
   async getCreatedId(): Promise<string> {
-    // IDが0でないことを確認
+    // IDフィールドに値が設定されるまで待機（最大30秒）
+    // 作成直後はIDが0または空の可能性があるため、有効な値になるまで待つ
+    try {
+      await this.page.waitForFunction(
+        () => {
+          const element = document.querySelector('#id') as HTMLInputElement;
+          if (!element) return false;
+          const value = element.value;
+          return value && value !== '0' && value.trim() !== '';
+        },
+        { timeout: 30000 }
+      );
+    } catch (error) {
+      // タイムアウトした場合、デバッグ情報を収集
+      const currentUrl = this.page.url();
+      const idValue = await this.idField.inputValue();
+      console.error(`❌ OPD ID取得タイムアウト`);
+      console.error(`   現在のURL: ${currentUrl}`);
+      console.error(`   IDフィールドの値: "${idValue}"`);
+
+      // ページ上のエラーメッセージを確認
+      const errorMessages = await this.page.locator('.el-message--error, .el-message-box__message').allTextContents();
+      if (errorMessages.length > 0) {
+        console.error(`   エラーメッセージ: ${errorMessages.join(', ')}`);
+      }
+
+      throw new Error(`OPD IDが30秒以内に設定されませんでした (現在の値: "${idValue}", URL: ${currentUrl})`);
+    }
+
+    // IDフィールドの値を取得
     const idValue = await this.idField.inputValue();
-    expect(idValue).not.toBe('0');
+
+    if (!idValue || idValue === '0' || idValue.trim() === '') {
+      throw new Error(`OPD IDが取得できませんでした: idValue="${idValue}"`);
+    }
 
     return idValue;
   }
@@ -313,7 +398,11 @@ export class OPDCreatePage extends BasePage {
     personalOpdClientId?: string;  // Personal OPD用のClient ID（例: "37100"）
     personalInsertText?: boolean;  // 差し込み文言オプション（true/false）
     useQfb?: boolean;  // QFB機能を利用するか
-    qfbAnswerLimit?: string;  // QFB回答上限数（例: "1"）
+    qfbTitle?: string;  // QFBタイトル（必須: 最大400文字）
+    qfbDeadline?: string;  // QFB回答期限（必須: yyyy/mm/dd hh:mm 形式）
+    qfbAnswerLimit?: string;  // QFB回答上限数（必須: 上限なしの場合は "0"）
+    qfbQuestion1Type?: string;  // QFB Q1質問タイプ（例: "テキスト", "単一選択", "複数選択"など、省略時は"テキスト"）
+    qfbQuestion1Content?: string;  // QFB Q1質問内容（最大400文字、省略時は"ご意見・ご感想をお聞かせください"）
   }): Promise<string> {
     // 基本情報入力
     await this.fillBasicInfo({
@@ -408,10 +497,44 @@ export class OPDCreatePage extends BasePage {
         await this.page.waitForTimeout(1000);  // QFB設定エリアの表示を待つ
       }
 
-      // QFB回答上限数を設定
+      // QFB必須フィールドを設定
+      // 1. タイトル (必須) - 最大400文字
+      if (data.qfbTitle) {
+        await this.qfbTitleInput.fill(data.qfbTitle);
+        await this.page.waitForTimeout(500);
+      }
+
+      // 2. 回答期限 (必須) - yyyy/mm/dd hh:mm 形式
+      if (data.qfbDeadline) {
+        await this.qfbDeadlineInput.fill(data.qfbDeadline);
+        await this.page.waitForTimeout(500);
+      }
+
+      // 3. 回答上限数 (必須) - 上限を設定しない場合は 0
       if (data.qfbAnswerLimit) {
         await this.qfbAnswerLimitInput.fill(data.qfbAnswerLimit);
         await this.page.waitForTimeout(500);
+      }
+
+      // 4. Q1質問タイプを設定 (デフォルト: "テキスト")
+      // QFB機能を使う場合、少なくとも1つの質問を設定する必要がある
+      const q1Type = data.qfbQuestion1Type || 'テキスト';
+      console.log(`QFB Q1質問タイプを設定します: ${q1Type}`);
+
+      // comboboxから選択肢を選択 (ネイティブ<select>要素として扱う)
+      await this.qfbQuestion1TypeSelect.selectOption({ label: q1Type });
+      await this.page.waitForTimeout(500);
+      console.log(`✓ Q1質問タイプを「${q1Type}」に設定しました`);
+
+      // 5. Q1質問内容を設定 (質問タイプが「使用しない」以外の場合は必須)
+      if (q1Type !== '使用しない') {
+        const q1Content = data.qfbQuestion1Content || 'ご意見・ご感想をお聞かせください';
+        console.log(`QFB Q1質問内容を設定します: ${q1Content}`);
+        // 質問内容フィールドが表示されるまで待機
+        await this.qfbQuestion1ContentInput.waitFor({ state: 'visible', timeout: 3000 });
+        await this.qfbQuestion1ContentInput.fill(q1Content);
+        await this.page.waitForTimeout(500);
+        console.log(`✓ Q1質問内容を設定しました`);
       }
     }
 
@@ -593,6 +716,68 @@ export class OPDCreatePage extends BasePage {
     const actionInput = attachmentRow.locator('input[type="text"]').nth(1);
     await actionInput.fill(actionPoints);
     await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * QFBを有効化して設定する
+   * @param config QFB設定オブジェクト
+   */
+  async enableQfb(config: {
+    title: string;
+    defaultEmail: string;
+    point: string;
+    deadline: string;
+    limitCount: string;
+    questionType: string;
+    questionContent: string;
+    answer1: string;
+    answer2: string;
+    answer3: string;
+    noteTop: string;
+    noteBottom: string;
+    internalNote: string;
+  }) {
+    // QFB利用するチェックボックスをクリック
+    await this.page.locator('#useQfb').click();
+    await this.page.waitForTimeout(1000);
+
+    // タイトル
+    await this.page.locator('input[name="qfb.detail.title"]').fill(config.title);
+
+    // 回答通知先デフォルトメールアドレス
+    await this.page.locator('label:has-text("回答通知先デフォルトメールアドレス")').locator('..').locator('.el-input__inner').fill(config.defaultEmail);
+
+    // 進呈ポイント
+    await this.page.locator('select[name="qfb.detail.point"]').selectOption(config.point);
+
+    // 回答期限
+    await this.page.locator('input[placeholder="回答期限"]').fill(config.deadline);
+
+    // 回答上限数
+    await this.page.locator('input[name="qfb.detail.answerUserCountLimit"]').fill(config.limitCount);
+
+    // Q1質問タイプ（単一選択=1、複数選択=2、自由記述=3）
+    await this.page.locator('select[name="qfb.detail.questions[0].questionType"]').selectOption(config.questionType);
+
+    // 質問内容
+    await this.page.locator('input[placeholder="質問内容"]').fill(config.questionContent);
+
+    // 回答選択肢
+    await this.page.locator('input[placeholder="A1(単一)"]').fill(config.answer1);
+    await this.page.locator('input[placeholder="A2(単一)"]').fill(config.answer2);
+    await this.page.locator('input[placeholder="A3(単一)"]').fill(config.answer3);
+
+    // 注意書き（上）
+    await this.page.locator('input[placeholder="注意書き（上）"]').fill(config.noteTop);
+
+    // 注意書き（下）
+    await this.page.locator('input[placeholder="注意書き（下）"]').fill(config.noteBottom);
+
+    // 社内連絡欄
+    await this.page.locator('textarea[placeholder="社内連絡欄"]').fill(config.internalNote);
+
+    await this.page.waitForTimeout(1000);
+    console.log('✓ QFB設定完了');
   }
 
   /**

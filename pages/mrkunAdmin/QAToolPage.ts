@@ -47,4 +47,30 @@ export class QAToolPage {
 
     return isComplete;
   }
+
+  /**
+   * MR登録を解除
+   * @param loginId ログインID（例: mrqa_auto048）
+   * @param mrId MR-ID（例: LIBONE）
+   * @param proxy プロキシ文字列（例: "1"）
+   */
+  async rollbackRegisteredMr(loginId: string, mrId: string, proxy: string = '1') {
+    const url = `http://mrqa${proxy}:7001/admin/qa/`;
+    console.log(`⏳ MR登録解除: loginId=${loginId}, mrId=${mrId}`);
+
+    await this.page.goto(url);
+    await this.page.waitForTimeout(2000);
+
+    // Login Id入力
+    await this.page.locator('#rollbackRegisteredMr_loginId').fill(loginId);
+
+    // MR-ID入力
+    await this.page.locator('#rollbackRegisteredMr_mrId').fill(mrId);
+
+    // 実行ボタン押下
+    await this.page.locator('button', { hasText: '実行' }).click();
+    await this.page.waitForTimeout(3000);
+
+    console.log(`✓ MR登録解除完了: loginId=${loginId}, mrId=${mrId}`);
+  }
 }

@@ -68,7 +68,11 @@ export default defineConfig({
 
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/opex-user.json',
+      },
+      dependencies: ['setup'],
     },
 
     // VPN direct connection (no proxy)
@@ -76,8 +80,10 @@ export default defineConfig({
       name: 'chromium-desktop-vpn-direct',
       use: {
         ...devices['Desktop Chrome'],
+        storageState: '.auth/opex-user.json',
         proxy: undefined, // Disable proxy for VPN direct connection
       },
+      dependencies: ['setup'],
     },
 
     //{

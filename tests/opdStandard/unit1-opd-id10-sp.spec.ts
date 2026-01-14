@@ -2,194 +2,268 @@ import { test, expect } from '@playwright/test';
 import { OPDCreatePage } from '../../pages/opex/OPDCreatePage';
 import { MRkunAdminPage } from '../../pages/mrkunAdmin/MRkunAdminPage';
 import { QAToolPage } from '../../pages/mrkunAdmin/QAToolPage';
-import { M3SPCAPage } from '../../pages/dr/M3SPCAPage';
+import { M3SPLoginPage } from '../../pages/dr/M3SPLoginPage';
 
 /**
- * Unit1_OPD_標準テスト_ID10_SP
+ * Unit1_OPD_標準テスト_ID10_SP (SP版)
  *
- * テスト内容:
- * - OPD作成（開封促進・回答促進CA設定あり）
- * - MR君でターゲット設定（システムコード: 901910）
- * - QA用ツールでCA設定
- * - SP版M3.comでCA表示確認
- *   - 開封促進CA
- *   - 回答促進CA
+ * テスト対象ID: ID10, ID11, ID12
+ *
+ * ■条件
+ * - 確認箇所: CA (Content Advisor)
+ * - CA: 開封促進CA
+ * - CA: 回答促進CA
+ * - QFB: 利用する（単一選択形式）
+ *
+ * ■期待値
+ * - ID10: 各種CAにメッセージ情報（タイトル、クライアント名、顔写真、進呈アクション数など）が正しく表示されること
+ * - ID11: 開封促進CAが正常に表示され、CAからメッセージ詳細へ正常に遷移できること
+ * - ID12: 回答促進CAが正常に表示され、CAからメッセージ詳細へ正常に遷移できること
+ *
+ * ■テストフロー
+ * 1. OPEX管理画面でOPD作成（QFB付き）
+ * 2. MR君管理画面でターゲット設定（システムコード: 901910）
+ * 3. QA用ツールでCA設定（OPD確率予測モデル登録）
+ * 4. SP版M3.comログイン（mrqa_auto074）
+ * 5. ID10, ID11: 開封促進CAが正常に表示され、メッセージ詳細へ遷移できることを確認
+ * 6. ID12: 回答促進CAが正常に表示され、メッセージ詳細へ遷移できることを確認
+ * 7. クリーンアップ（管理メモを空欄にする）
  */
 
-test.describe('Unit1_OPD_標準テスト_ID10_SP', () => {
-  test('OPD作成 → MR君ターゲット設定 → CA表示確認（SP版）', async ({ browser }) => {
-    console.log('\n#### Unit1_OPD_標準テスト_ID10_SP');
+test.describe('Unit1_OPD_標準テスト_ID10_SP (SP版)', () => {
+  test('ID10, ID11, ID12 - CA表示確認テスト (SP版)', async ({ page, browser }) => {
+    // システムコード901910でターゲット設定（mrqa_auto074）
+    const systemCode = '901910';
+    const loginId = 'mrqa_auto074';
+    const password = process.env.M3_SP_PASSWORD || 'Autoqa1!';
+    const managementMemo = 'opd_標準テスト_事前ID10SP';
 
-    // ========================================
-    // Part 0: 事前準備OPD作成（QAツール用）
-    // ========================================
-    console.log('\n### Part 0: 事前準備OPD作成（QAツール用）');
+    console.log('\\n=== Unit1_OPD_標準テスト_ID10_SP (SP版) 開始 ===');
+    console.log(`システムコード: ${systemCode}`);
+    console.log(`ログインID: ${loginId}`);
+    console.log(`管理メモ: ${managementMemo}`);
 
-    const opexContextPrep = await browser.newContext({ storageState: '.auth/opex-user.json' });
-    const opexPagePrep = await opexContextPrep.newPage();
-    const opdCreatePagePrep = new OPDCreatePage(opexPagePrep);
+    // Part 1: OPEX管理画面でOPD作成（QFB付き）
+    console.log('\\n### Part 1: OPEX管理画面でOPD作成（QFB付き）');
+    const opdCreatePage = new OPDCreatePage(page);
 
-    const proxyNumber = '-qa1';
-    await opdCreatePagePrep.goto(proxyNumber);
-    await opdCreatePagePrep.waitForPageLoad();
-
-    // 今日の日付を取得
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
-    const dateNumStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-    const requestFormIdPrep = `${dateNumStr}${Math.floor(Math.random() * 10000000)}`;
-
-    // 事前準備OPD作成（管理メモ: opd_標準テスト_事前ID10SP）
-    const prepOpdId = await opdCreatePagePrep.createOPDMessage({
-      companyName: '事前準備株式会社',
-      productName: '事前準備薬品',
-      requestFormId: requestFormIdPrep,
-      openingPrice: '100',
-      title: `事前準備OPD_ID10SP_${dateNumStr}`,
-      openingLimit: '10',
-      openingAction: '50',
-      startDate: dateStr,
-      startTime: '00:00:00',
-      endDate: dateStr,
-      endTime: '23:59:59',
-      companyCode: '9909000135',
-      pcDetailBody: 'QAツール事前準備用OPD',
-      managementMemo: 'opd_標準テスト_事前ID10SP', // QAツールが期待する管理メモ
-    });
-
-    console.log(`✓ 事前準備OPD作成完了: ID=${prepOpdId}, 管理メモ=opd_標準テスト_事前ID10SP`);
-
-    await opexContextPrep.close();
-
-    // ========================================
-    // Part 1: OPD作成（OPEX管理画面）
-    // ========================================
-    console.log('\n### Part 1: OPD作成（OPEX管理画面）');
-
-    const opexContext = await browser.newContext({ storageState: '.auth/opex-user.json' });
-    const opexPage = await opexContext.newPage();
-
-    const opdCreatePage = new OPDCreatePage(opexPage);
-
-    // OPD作成ページに遷移
-    await opdCreatePage.goto(proxyNumber);
+    // OPD作成画面に遷移（認証済みセッションを使用）
+    await opdCreatePage.goto();
     await opdCreatePage.waitForPageLoad();
 
-    // ランダム文字列生成
-    const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
-    const opdTitle = `自動テストタイトル10SP_${dateNumStr}_${randomStr}`;
-    const requestFormId = `${dateNumStr}${Math.floor(Math.random() * 10000000)}`;
+    // 基本情報を入力
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+    const opdMessageNumber = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+    const randomSuffix = Math.random().toString(36).substring(2, 5);
+    const opdMessageTitle = `自動テストタイトルID10_SP_${opdMessageNumber}_${randomSuffix}`;
+    const requestFormId = `${opdMessageNumber}${Math.floor(Math.random() * 10000000)}`;
 
-    // OPD作成
-    const opdId = await opdCreatePage.createOPDMessage({
+    // 基本情報入力
+    await opdCreatePage.fillBasicInfo({
       companyName: '自動テスト株式会社',
       productName: '自動テスト薬品',
       requestFormId: requestFormId,
       openingPrice: '100',
-      title: opdTitle,
+      title: opdMessageTitle,
       openingLimit: '10',
-      openingAction: '50', // 開封アクション
-      startDate: dateStr,
-      startTime: '00:00:00',
-      endDate: dateStr,
-      endTime: '23:59:59',
-      companyCode: '9909000135', // 課金対象会社コード
-      pcDetailBody: 'CA表示確認用テスト本文（SP版）', // 本文
+      openingAction: '50',
     });
 
-    console.log(`✓ OPD作成完了: ID=${opdId}, タイトル=${opdTitle}`);
+    // 配信ステータス: 表示
+    await opdCreatePage.deliveryStatusDisplayRadio.click();
 
-    await opexContext.close();
+    // 日時設定
+    await opdCreatePage.setDateTime(true, dateStr, '00:00:00'); // 開始日時
+    await opdCreatePage.setDateTime(false, dateStr, '23:59:59'); // 終了日時
 
-    // ========================================
+    // 配信終了日
+    await opdCreatePage.clickDeliveryEndDate();
+
+    // 管理メモ（QA用ツールが期待する特定の値）
+    await opdCreatePage.setManagementMemo(managementMemo);
+
+    // メッセージ種類: 通常OPD
+    await opdCreatePage.messageTypeNormalOpdRadio.click();
+
+    // 合算チェック用会社
+    await opdCreatePage.selectBillingCompany('9909000135');
+
+    // 埋め込み動画を利用する（PCもSPもワンタグ）
+    await page.locator('#useEmbeddedMovie_doUseEmbeddedMoviePcSpOneTag > span.el-radio__label').click();
+
+    // PCディテール本文
+    await opdCreatePage.fillPCDetail('PCディテール本文コンテンツ');
+    await opdCreatePage.copyPCDetailToSPDetail();
+
+    // QFB100回答無償CP: 対象外
+    await opdCreatePage.selectQfbReporting(false);
+
+    // QFB利用設定
+    await opdCreatePage.enableQfb({
+      title: 'ID10_QFBテスト_SP',
+      defaultEmail: `id10sptest${Date.now()}@mabl.com`, // 一時メールアドレス
+      point: '5',
+      deadline: `${dateStr} 23:59`,
+      limitCount: '0',
+      questionType: '1', // 単一選択
+      questionContent: 'Q1質問内容',
+      answer1: '回答A',
+      answer2: '回答B',
+      answer3: '回答C',
+      noteTop: '注意書き(上)',
+      noteBottom: '注意書き(下)',
+      internalNote: '社内連絡',
+    });
+
+    // OPD作成
+    const opdId = await opdCreatePage.createOPD();
+    console.log(`✓ OPD作成完了: ID=${opdId}`);
+
     // Part 2: MR君管理画面でターゲット設定
-    // ========================================
-    console.log('\n### Part 2: MR君管理画面でターゲット設定');
-
-    const mrkunContext = await browser.newContext({ storageState: '.auth/mrkun-user.json' });
-    const mrkunPage = await mrkunContext.newPage();
-
+    console.log('\\n### Part 2: MR君管理画面でターゲット設定');
+    const mrkunPage = await browser.newPage();
     const mrkunAdminPage = new MRkunAdminPage(mrkunPage);
-
-    // システムコード901910でターゲット設定（SP版用）
-    const systemCode = '901910';
     await mrkunAdminPage.setupTarget(opdId, systemCode);
-
     console.log(`✓ ターゲット設定完了: システムコード=${systemCode}`);
+    await mrkunPage.close();
 
-    // ターゲット設定の反映待機
-    console.log('⏳ ターゲット設定の反映待機中...');
-    await mrkunPage.waitForTimeout(10000);
-    console.log('✓ 10秒待機完了');
+    // Part 3: QA用ツールでCA設定（OPD確率予測モデル登録）
+    // SP版ではsystemCd1パラメータを使用
+    console.log('\\n### Part 3: QA用ツールでCA設定（OPD確率予測モデル登録）');
+    await page.goto(`http://mrqa1/admin/qa/registerOpdAlgorithmType.jsp?systemCd1=${systemCode}`);
+    await page.waitForTimeout(3000);
 
-    // ========================================
-    // Part 3: QA用ツールでCA設定
-    // ========================================
-    console.log('\n### Part 3: QA用ツールでCA設定');
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText).toContain('登録完了');
+    console.log(`✓ CA設定完了: システムコード=${systemCode}`);
 
-    const qaToolPage = new QAToolPage(mrkunPage);
+    // Part 4: SP版M3.comログイン
+    console.log('\\n### Part 4: SP版M3.comログイン');
+    const m3SpPage = await browser.newPage();
+    const m3SpLoginPage = new M3SPLoginPage(m3SpPage);
 
-    // OPD確率予測モデル登録（CA設定）
-    const registered = await qaToolPage.registerOpdAlgorithmType(systemCode);
+    await m3SpPage.goto('https://sp.m3.com/');
+    await m3SpPage.waitForTimeout(3000);
+    await m3SpPage.locator('input[placeholder="ログインID"]').fill(loginId);
+    await m3SpPage.locator('input[placeholder="パスワード"]').fill(password);
+    await m3SpPage.locator('button', { hasText: 'ログイン' }).click();
+    await m3SpPage.waitForTimeout(3000);
+    console.log(`✓ SP版M3.comログイン完了: ${loginId}`);
 
-    if (!registered) {
-      console.log('⚠️  CA設定が完了していない可能性がありますが、テストを継続します');
+    // Part 5: ID10, ID11 - 開封促進CA表示確認
+    console.log('\\n### Part 5: ID10, ID11 - 開封促進CA表示確認');
+    await m3SpPage.goto('https://sp.m3.com/');
+    await m3SpPage.waitForTimeout(10000); // SP版は表示に時間がかかる
+
+    // 「まだお読みでない医療情報があります」が表示されるまでリトライ（最大7回）
+    let retries = 7;
+    let caDisplayed = false;
+    while (retries > 0) {
+      const caElement = await m3SpPage.locator('a[href*="90113"]').first();
+      const caCount = await m3SpPage.locator('a[href*="90113"]').count();
+
+      if (caCount > 0) {
+        const caText = await caElement.innerText();
+        if (caText.includes('まだお読みでない医療情報があります')) {
+          caDisplayed = true;
+          break;
+        }
+      }
+      console.log(`  ⏳ CA表示待機中... (残り${retries}回)`);
+      await m3SpPage.reload();
+      await m3SpPage.waitForTimeout(10000);
+      retries--;
     }
 
-    await mrkunContext.close();
+    expect(caDisplayed).toBeTruthy();
+    console.log('✓ ID10, ID11: 開封促進CAが表示された');
 
-    // ========================================
-    // Part 4: SP版M3.comでCA表示確認
-    // ========================================
-    console.log('\n### Part 4: SP版M3.comでCA表示確認');
+    // CA href属性に"90113"（開封促進CA）が含まれることを確認
+    const caLink = await m3SpPage.locator('a[href*="90113"]').first();
+    const caHref = await caLink.getAttribute('href');
+    expect(caHref).toContain('90113');
+    console.log('✓ ID10: CA href属性に"90113"（開封促進CA）が含まれる');
 
-    const m3spContext = await browser.newContext({
-      viewport: { width: 430, height: 932 }, // iPhone 15 Plus縦
-      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/113.0.5672.121 Mobile/15E148 Safari/604.1'
-    });
-    const m3spPage = await m3spContext.newPage();
+    // CAタイトルがOPDタイトルと一致することを確認
+    const caSpan = await m3SpPage.locator('span', { hasText: opdMessageTitle }).first();
+    const caTitle = await caSpan.innerText();
+    expect(caTitle).toContain(opdMessageTitle);
+    console.log(`✓ ID10: CAタイトルが一致 (${opdMessageTitle})`);
 
-    const m3spCAPage = new M3SPCAPage(m3spPage);
+    // 「まだお読みでない医療情報があります」が表示されること確認
+    const caDiv = await m3SpPage.locator('div', { hasText: 'まだお読みでない医療情報があります' }).first();
+    const caDivText = await caDiv.innerText();
+    expect(caDivText).toContain('まだお読みでない医療情報があります');
+    console.log('✓ ID10: 「まだお読みでない医療情報があります」が表示されている');
 
-    // M3.com SP版にログイン
-    await m3spCAPage.login('mrqa_auto058', process.env.M3_SP_PASSWORD || 'Autoqa1!');
+    // 顔写真が表示されること確認
+    const caImage = await m3SpPage.locator('img[src*="https://mrkun.m3.com/mt-img/onepoint/"]').first();
+    const caImageSrc = await caImage.getAttribute('src');
+    expect(caImageSrc).toContain('https://mrkun.m3.com/mt-img/onepoint/');
+    console.log('✓ ID10: 顔写真が表示されている');
 
-    // CA表示待機
-    const caDisplayed = await m3spCAPage.waitForCADisplay(opdTitle);
+    // 進呈アクション数が表示されること確認（50進呈）
+    const actionSpan = await m3SpPage.locator('span', { hasText: '進呈' }).first();
+    const actionText = await actionSpan.innerText();
+    expect(actionText).toContain('50進呈');
+    console.log('✓ ID10: 進呈アクション数が表示されている（50進呈）');
 
-    if (!caDisplayed) {
-      console.log('⚠️  CAが表示されませんでした。テスト継続します。');
-    }
+    // CAをクリックしてOPD詳細ページに遷移
+    await caLink.click();
+    await m3SpPage.waitForTimeout(3000);
 
-    // 開封促進CA表示確認（ID11）
-    console.log('\n### ID11: 開封促進CA表示確認');
-    const openCAVerified = await m3spCAPage.verifyOpenPromotionCA(opdTitle);
+    // OPD詳細ページのタイトルが一致することを確認
+    const opdDetailTitle = await m3SpPage.locator('h1', { hasText: opdMessageTitle }).first().innerText();
+    expect(opdDetailTitle).toBe(opdMessageTitle);
+    console.log('✓ ID11: CAからメッセージ詳細へ正常に遷移できた');
 
-    if (openCAVerified) {
-      // CAタイトルをクリックしてOPD詳細に遷移
-      await m3spCAPage.clickCATitle(opdTitle);
-    } else {
-      console.log('⚠️  CA未表示のため、詳細画面遷移をスキップ');
-    }
+    // Part 6: ID12 - 回答促進CA表示確認
+    console.log('\\n### Part 6: ID12 - 回答促進CA表示確認');
+    await m3SpPage.goto('https://sp.m3.com/');
+    await m3SpPage.waitForTimeout(2000);
 
-    // 回答促進CA表示確認（ID12）
-    console.log('\n### ID12: 回答促進CA表示確認');
-    // 回答促進CAは別のメッセージに表示される可能性があるため、
-    // 一度トップに戻る必要があるかもしれない
-    await m3spCAPage.gotoOPDTop();
-    const answerCAVerified = await m3spCAPage.verifyAnswerPromotionCA(opdTitle);
+    // CAが表示される特定メッセージに遷移
+    await m3SpPage.goto('https://mrkun.m3.com/sp/mrq/MWB0000000/202306091824343676/message.htm?pageContext=sp_mrq3.0&mkep=msgList&wid=20230609185957570');
+    await m3SpPage.waitForTimeout(3000);
 
-    if (!answerCAVerified) {
-      console.log('⚠️  回答促進CAの表示確認ができませんでした（テストは継続）');
-    }
+    // iframeにスイッチ
+    const iframe = m3SpPage.frameLocator('iframe.autoHeight');
 
-    await m3spContext.close();
+    // CA href属性に"90213"（回答促進CA）が含まれることを確認
+    const surveyLink = iframe.locator('a', { hasText: 'アンケートに回答する' }).first();
+    const surveyHref = await surveyLink.getAttribute('href');
+    expect(surveyHref).toContain('90213');
+    console.log('✓ ID12: CA href属性に"90213"（回答促進CA）が含まれる');
 
-    // テスト結果のアサーション
-    expect(opdId).toBeTruthy();
-    expect(opdTitle).toContain('自動テストタイトル10SP');
+    // 「アンケートに回答する」ボタンをクリック
+    await surveyLink.click();
+    await m3SpPage.waitForTimeout(5000);
 
-    console.log('\n✅ テスト完了（CA表示確認完了・SP版）');
-    console.log(`📝 注記: 開封促進CA・回答促進CAの表示を確認しました`);
+    // 新しいタブに遷移（QFB回答ページ）
+    const pages = m3SpPage.context().pages();
+    const qfbPage = pages[pages.length - 1];
+    await qfbPage.waitForLoadState('domcontentloaded');
+    await qfbPage.waitForTimeout(3000);
+
+    // QFBタイトルが"ID10_QFBテスト_SP"と一致することを確認
+    const qfbTitle = await qfbPage.locator('span', { hasText: 'ID10_QFBテスト_SP' }).first().innerText();
+    expect(qfbTitle).toBe('ID10_QFBテスト_SP');
+    console.log('✓ ID12: QFBタイトルが一致（ID10_QFBテスト_SP）CAからメッセージ詳細へ正常に遷移できた');
+
+    await qfbPage.close();
+    await m3SpPage.close();
+
+    // Part 7: クリーンアップ（管理メモを空欄にする）
+    console.log('\\n### Part 7: クリーンアップ（管理メモを空欄にする）');
+    await opdCreatePage.gotoEdit(opdId);
+    await opdCreatePage.setManagementMemo('');
+    await page.locator('button', { hasText: '更新' }).click();
+    await page.waitForTimeout(3000);
+    await page.locator('button', { hasText: 'OK' }).click();
+    await page.waitForTimeout(3000);
+    console.log('✓ 管理メモクリーンアップ完了');
+
+    console.log('\\n=== Unit1_OPD_標準テスト_ID10_SP (SP版) 完了 ===');
   });
 });
