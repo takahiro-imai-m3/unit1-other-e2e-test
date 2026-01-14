@@ -51,8 +51,24 @@ export class OPDPromotionMailPage extends BasePage {
    * プレビュー画像を生成（画像生成完了まで待機）
    */
   async generatePreviewImage() {
+    // プレビューセクションのローディングスピナーが消えるまで待機
+    console.log('⏳ ローディング状態の確認中...');
+    try {
+      await this.page.waitForSelector('.el-loading-mask', { state: 'hidden', timeout: 10000 });
+      console.log('✓ ローディングスピナーが消えました');
+    } catch (error) {
+      console.log('⚠️  ローディングスピナーの確認でタイムアウト（継続します）');
+    }
+
+    // プレビュー画像生成ボタンがクリック可能か確認
+    await this.previewImageButton.waitFor({ state: 'visible', timeout: 5000 });
+
+    // ボタンをクリック
     await this.previewImageButton.click();
-    console.log('✓ プレビュー画像生成を開始');
+    console.log('✓ プレビュー画像生成ボタンをクリック');
+
+    // クリック後、再度ローディングスピナーが表示されるまで待機
+    await this.page.waitForTimeout(2000);
 
     // 初期待機（画像生成処理開始まで）
     await this.page.waitForTimeout(40000);
@@ -182,10 +198,9 @@ export class OPDPromotionMailPage extends BasePage {
    */
   async registerDelivery(testEmail: string = 'qa-Read_promotion_test@m3.com') {
     // テストメール送信先を入力
-    // 配信日付フィールドの後にある、role=textboxで検索
-    const allTextboxes = await this.page.getByRole('textbox').all();
-    // 配信日付フィールドが1つ目、テストメールが2つ目と想定
-    const testEmailInput = allTextboxes[1];
+    // 「テストメールの送信先」ラベルの次の.el-form-item__content内のinputを取得
+    const testEmailInput = this.page.locator('label:has-text("テストメールの送信先")').locator('..').locator('.el-input__inner').first();
+    await testEmailInput.waitFor({ state: 'visible', timeout: 10000 });
     await testEmailInput.fill(testEmail);
     await this.page.waitForTimeout(500);
     console.log(`✓ テストメール送信先を設定: ${testEmail}`);
