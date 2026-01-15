@@ -60,6 +60,10 @@ export class OPDCreatePage extends BasePage {
   // ID表示フィールド
   readonly idField: Locator;
 
+  // S3 CSV自動配信 (Subdivide Distribution)
+  readonly subdivideDistributionSwitch: Locator;
+  readonly subdivideDistributionLabel: Locator;
+
   constructor(page: Page) {
     super(page);
 
@@ -136,6 +140,13 @@ export class OPDCreatePage extends BasePage {
     // HTML構造: <input id="id" type="text" disabled="disabled" class="el-input__inner"/>
     // "ID"という名前のtextboxが複数あるため、CSS IDセレクター #id を使用
     this.idField = page.locator('#id');
+
+    // S3 CSV自動配信 (Subdivide Distribution)
+    // mablステップ283-288: Click on first <input> element matching css query "#useSubdivideDistribution"
+    // Element-UIのスイッチコンポーネント: input要素をクリックしてON/OFF切り替え
+    this.subdivideDistributionSwitch = page.locator('#useSubdivideDistribution');
+    // "利用する"ラベル - アサーション用
+    this.subdivideDistributionLabel = page.locator('label:has-text("利用する")').filter({ has: this.subdivideDistributionSwitch });
   }
 
   /**
@@ -603,118 +614,160 @@ export class OPDCreatePage extends BasePage {
    * @param companyCode 会社コード（例: '9909000135'）
    */
   async selectBillingCompany(companyCode: string) {
-    // プルダウンをクリック
-    await this.page.locator('.el-select').filter({ hasText: '選択してください' }).click();
+    // 「合算チェック用会社」セクション内のプルダウンをクリック
+    const billingCompanySection = this.page.locator('.el-form-item').filter({ hasText: '合算チェック用会社' });
+    const selectInput = billingCompanySection.locator('.el-select input[placeholder="選択してください"]');
+    await selectInput.click();
     await this.page.waitForTimeout(1000);
 
-    // 会社コードで検索
-    const searchInput = this.page.locator('.el-select-dropdown input[type="text"]').last();
-    await searchInput.fill(companyCode);
-    await this.page.waitForTimeout(1000);
-
-    // 会社を選択
-    await this.page.locator('.el-select-dropdown__item span').filter({ hasText: companyCode }).click();
+    // 会社コードを含むリストアイテムを直接クリック
+    await this.page.locator('ul.el-select-dropdown__list li').filter({ hasText: companyCode }).first().click();
     await this.page.waitForTimeout(1000);
   }
 
   /**
    * 動画コンテンツを追加
-   * @param movieId 動画ID（例: 'dellegra_201501_01'）
-   * @param actionPoints アクションポイント
+   * @param params.movieId 動画ID（例: 'dellegra_201501_01'）（オプション）
+   * @param params.actionPoint アクションポイント
+   * @param params.mrRegistration MR登録の有無（オプション）
    */
-  async addMovieContent(movieId: string, actionPoints: string) {
+  async addMovieContent(params: { movieId?: string; actionPoint: string; mrRegistration?: boolean }) {
+    const { movieId, actionPoint, mrRegistration } = params;
+
     // コンテンツテーブルの動画行を探す
     const movieRow = this.page.locator('table tbody tr').filter({ hasText: '動画' }).first();
 
-    // 動画IDを入力
-    const movieInput = movieRow.locator('input[type="text"]').first();
-    await movieInput.fill(movieId);
-    await this.page.waitForTimeout(500);
+    // 動画IDを入力（指定された場合のみ）
+    if (movieId) {
+      const movieInput = movieRow.locator('input[type="text"]').first();
+      await movieInput.fill(movieId);
+      await this.page.waitForTimeout(500);
+    }
 
     // アクションポイントを入力
-    const actionInput = movieRow.locator('input[type="text"]').nth(1);
-    await actionInput.fill(actionPoints);
+    const actionInputs = movieRow.locator('input[type="number"]');
+    const actionInput = actionInputs.first();
+    await actionInput.fill(actionPoint);
     await this.page.waitForTimeout(500);
+
+    // MR登録チェックボックス（指定された場合のみ）
+    if (mrRegistration !== undefined) {
+      const checkbox = movieRow.locator('input[type="checkbox"]').first();
+      const isChecked = await checkbox.isChecked();
+      if (mrRegistration && !isChecked) {
+        await checkbox.check();
+      } else if (!mrRegistration && isChecked) {
+        await checkbox.uncheck();
+      }
+      await this.page.waitForTimeout(500);
+    }
   }
 
   /**
    * その他コンテンツを追加
-   * @param url URL
-   * @param actionPoints アクションポイント
+   * @param params.contentNumber コンテンツ番号（1-7）
+   * @param params.url URL（オプション）
+   * @param params.actionPoint アクションポイント
    */
-  async addOtherContent(url: string, actionPoints: string) {
-    // コンテンツテーブルのその他行で空欄のものを探す
+  async addOtherContent(params: { contentNumber: number; url?: string; actionPoint: string }) {
+    const { contentNumber, url, actionPoint } = params;
+
+    // コンテンツテーブルのその他行を取得（1番目から順に）
     const otherRows = this.page.locator('table tbody tr').filter({ hasText: 'その他' });
-    const count = await otherRows.count();
+    const row = otherRows.nth(contentNumber - 1);
 
-    for (let i = 0; i < count; i++) {
-      const row = otherRows.nth(i);
+    // URLを入力（指定された場合のみ）
+    if (url) {
       const urlInput = row.locator('input[type="text"]').first();
-      const currentValue = await urlInput.inputValue();
-
-      if (!currentValue || currentValue === '') {
-        // 空欄の行が見つかった
-        await urlInput.fill(url);
-        await this.page.waitForTimeout(500);
-
-        const actionInput = row.locator('input[type="text"]').nth(1);
-        await actionInput.fill(actionPoints);
-        await this.page.waitForTimeout(500);
-        return;
-      }
+      await urlInput.fill(url);
+      await this.page.waitForTimeout(500);
     }
 
-    throw new Error('その他コンテンツの空き行が見つかりません');
+    // アクションポイントを入力
+    const actionInput = row.locator('input[type="number"]').first();
+    await actionInput.fill(actionPoint);
+    await this.page.waitForTimeout(500);
   }
 
   /**
    * OPD Quizコンテンツを追加
-   * @param url Quiz URL
-   * @param actionPoints アクションポイント
+   * @param params.url Quiz URL（オプション）
+   * @param params.actionPoint アクションポイント
    */
-  async addOpdQuizContent(url: string, actionPoints: string) {
+  async addOpdQuizContent(params: { url?: string; actionPoint: string }) {
+    const { url, actionPoint } = params;
     const quizRow = this.page.locator('table tbody tr').filter({ hasText: 'OPD Quiz' }).first();
 
-    const urlInput = quizRow.locator('input[type="text"]').first();
-    await urlInput.fill(url);
-    await this.page.waitForTimeout(500);
+    // URLを入力（指定された場合のみ）
+    if (url) {
+      const urlInput = quizRow.locator('input[type="text"]').first();
+      await urlInput.fill(url);
+      await this.page.waitForTimeout(500);
+    }
 
-    const actionInput = quizRow.locator('input[type="text"]').nth(1);
-    await actionInput.fill(actionPoints);
+    // アクションポイントを入力
+    const actionInput = quizRow.locator('input[type="number"]').first();
+    await actionInput.fill(actionPoint);
     await this.page.waitForTimeout(500);
   }
 
   /**
    * MR君・myMR君登録コンテンツを追加
-   * @param url 登録URL
-   * @param actionPoints アクションポイント
+   * @param params.url 登録URL（オプション）
+   * @param params.actionPoint アクションポイント
+   * @param params.mrRegistration MR登録の有無（オプション）
    */
-  async addMrRegistrationContent(url: string, actionPoints: string) {
-    const mrRow = this.page.locator('table tbody tr').filter({ hasText: 'MR君・myMR君登録' }).first();
+  async addMrRegistrationContent(params: { url?: string; actionPoint: string; mrRegistration?: boolean }) {
+    const { url, actionPoint, mrRegistration } = params;
+    // "MR君・my MR君登録" (スペースあり) でフィルタ
+    const mrRow = this.page.locator('table tbody tr').filter({ hasText: 'MR君' }).filter({ hasText: '登録' }).first();
 
-    const urlInput = mrRow.locator('input[type="text"]').first();
-    await urlInput.fill(url);
+    // URLを入力（指定された場合のみ）
+    if (url) {
+      // 最初のinput要素（type="text"のURL入力欄）
+      const urlInput = mrRow.locator('input').first();
+      await urlInput.fill(url);
+      await this.page.waitForTimeout(500);
+    }
+
+    // アクションポイントを入力（常に2番目のinput要素=spinbutton）
+    // MR登録行の構造: textbox(URL), spinbutton(actionPoint), checkbox(MR登録)
+    const actionInput = mrRow.locator('input').nth(1);
+    await actionInput.fill(actionPoint);
     await this.page.waitForTimeout(500);
 
-    const actionInput = mrRow.locator('input[type="text"]').nth(1);
-    await actionInput.fill(actionPoints);
-    await this.page.waitForTimeout(500);
+    // MR登録チェックボックス（指定された場合のみ）
+    if (mrRegistration !== undefined) {
+      const checkbox = mrRow.locator('input[type="checkbox"]').first();
+      const isChecked = await checkbox.isChecked();
+      if (mrRegistration && !isChecked) {
+        await checkbox.check();
+      } else if (!mrRegistration && isChecked) {
+        await checkbox.uncheck();
+      }
+      await this.page.waitForTimeout(500);
+    }
   }
 
   /**
    * 添付文書コンテンツを追加
-   * @param url 添付文書URL
-   * @param actionPoints アクションポイント
+   * @param params.url 添付文書URL（オプション）
+   * @param params.actionPoint アクションポイント
    */
-  async addAttachmentContent(url: string, actionPoints: string) {
+  async addAttachmentContent(params: { url?: string; actionPoint: string }) {
+    const { url, actionPoint } = params;
     const attachmentRow = this.page.locator('table tbody tr').filter({ hasText: '添付文書' }).first();
 
-    const urlInput = attachmentRow.locator('input[type="text"]').first();
-    await urlInput.fill(url);
-    await this.page.waitForTimeout(500);
+    // URLを入力（指定された場合のみ）
+    if (url) {
+      const urlInput = attachmentRow.locator('input[type="text"]').first();
+      await urlInput.fill(url);
+      await this.page.waitForTimeout(500);
+    }
 
-    const actionInput = attachmentRow.locator('input[type="text"]').nth(1);
-    await actionInput.fill(actionPoints);
+    // アクションポイントを入力
+    const actionInput = attachmentRow.locator('input[type="number"]').first();
+    await actionInput.fill(actionPoint);
     await this.page.waitForTimeout(500);
   }
 
@@ -821,5 +874,83 @@ export class OPDCreatePage extends BasePage {
   async createOPD(): Promise<string> {
     await this.clickCreate();
     return await this.getCreatedId();
+  }
+
+  /**
+   * MR_IDを入力
+   * @param mrId MR ID（例: "小松ゆう"、"LIBONE | 里梨 亜衣(日本イーライリリー株式会社)"）
+   */
+  async fillMrId(mrId: string) {
+    const mrIdInput = this.page.locator('input[name="mrId"]');
+    await mrIdInput.fill(mrId);
+    console.log(`MR_ID設定: ${mrId}`);
+  }
+
+  /**
+   * S3 CSV自動配信（小分け配信）を有効化
+   * ID74テスト用 - OPD作成後に更新画面で自動配信をONにする
+   *
+   * 注意: U1OPEX-1194のデグレにより、新規作成時には自動配信を有効化できない
+   * 必ずOPD作成→更新の順で実行する必要がある
+   */
+  async enableSubdivideDistribution() {
+    console.log('🔄 S3 CSV自動配信を有効化します...');
+
+    // 「自動配信」というテキストを含むセクションを特定
+    // Page snapshot: generic [ref=e976] > generic [ref=e977]: 自動配信 > generic [ref=e981] > switch "利用する"
+    const subdivideSection = this.page.locator('text=自動配信').locator('..').locator('..');
+
+    // セクションをビューポートにスクロール
+    await subdivideSection.scrollIntoViewIfNeeded();
+    await this.page.waitForTimeout(1000);
+
+    // セクション内のスイッチ要素を取得
+    const switchElement = subdivideSection.locator('.el-switch').first();
+
+    // スイッチが表示されるまで待機
+    await switchElement.waitFor({ state: 'visible', timeout: 10000 });
+
+    console.log('  スイッチをクリックしてONにします...');
+
+    // Element-UIのスイッチをクリック
+    await switchElement.click();
+    await this.page.waitForTimeout(500);
+
+    console.log('✓ S3 CSV自動配信を有効化しました');
+  }
+
+  /**
+   * S3 CSV自動配信（小分け配信）の状態を確認
+   * @returns trueならON、falseならOFF
+   */
+  async isSubdivideDistributionEnabled(): Promise<boolean> {
+    return await this.subdivideDistributionSwitch.isChecked();
+  }
+
+  /**
+   * S3 CSV自動配信（小分け配信）のラベル表示を検証
+   * ID75テスト用 - デフォルトで「利用する」ラベルが表示されていることを確認
+   */
+  async verifySubdivideDistributionLabel() {
+    console.log('🔍 S3 CSV自動配信のラベル表示を検証します...');
+
+    // "利用する"ラベルが表示されていることを確認
+    await expect(this.subdivideDistributionLabel).toBeVisible();
+    const labelText = await this.subdivideDistributionLabel.textContent();
+    expect(labelText).toContain('利用する');
+
+    console.log('✓ S3 CSV自動配信のラベル「利用する」が表示されています');
+  }
+
+  /**
+   * S3 CSV自動配信（小分け配信）のスイッチ状態を検証
+   * @param expectedState 期待される状態（true: ON、false: OFF）
+   */
+  async verifySubdivideDistributionState(expectedState: boolean) {
+    const actualState = await this.isSubdivideDistributionEnabled();
+    const stateText = expectedState ? 'ON（有効）' : 'OFF（無効）';
+
+    expect(actualState).toBe(expectedState);
+    console.log(`✓ S3 CSV自動配信のスイッチ状態: ${stateText}`);
   }
 }
