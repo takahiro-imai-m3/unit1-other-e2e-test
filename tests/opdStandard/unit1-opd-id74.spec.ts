@@ -283,14 +283,58 @@ test.describe('Unit1_OPD_標準テスト_ID74', () => {
     await mrkunPage2.goto(mrkunSearchUrl);
     await mrkunPage2.waitForLoadState('networkidle');
 
-    // 一覧の最初のOPD IDを取得
-    const firstOpdIdLink = mrkunPage2.locator('#widthpx > table.listTable > tbody > tr:nth-child(1) > td.cell_1 > p:nth-child(1) > a').first();
-    const firstOpdIdText = await firstOpdIdLink.textContent();
+    // 小分け配信OPDの作成を待機（Job実行後、処理に時間がかかる可能性がある）
+    // 複数回リロードして確認
+    console.log('⏳ 小分け配信OPD作成を待機中...');
+
+    let retryCount = 0;
+    const maxRetries = 6; // 最大30秒（5秒 x 6回）
+
+    for (retryCount = 0; retryCount < maxRetries; retryCount++) {
+      await mrkunPage2.waitForTimeout(5000);
+      await mrkunPage2.reload();
+      await mrkunPage2.waitForLoadState('networkidle');
+
+      // OPD件数を確認
+      const tempLinks = mrkunPage2.locator('#widthpx > table.listTable > tbody > tr > td.cell_1 > p:nth-child(1) > a');
+      const tempCount = await tempLinks.count();
+
+      console.log(`   リトライ ${retryCount + 1}/${maxRetries}: ${tempCount}件のOPD`);
+
+      if (tempCount > 1) {
+        console.log('   ✓ 小分け配信OPDが作成されました');
+        break;
+      }
+    }
+
+    // 一覧のすべてのOPD IDを取得してデバッグ出力
+    const allOpdIdLinks = mrkunPage2.locator('#widthpx > table.listTable > tbody > tr > td.cell_1 > p:nth-child(1) > a');
+    const allOpdIdCount = await allOpdIdLinks.count();
+    console.log(`📋 検索結果: ${allOpdIdCount}件のOPDが見つかりました`);
+
+    const allOpdIds: string[] = [];
+    for (let i = 0; i < Math.min(allOpdIdCount, 5); i++) {
+      const opdIdText = await allOpdIdLinks.nth(i).textContent();
+      allOpdIds.push(opdIdText || '');
+      console.log(`   ${i + 1}. OPD ID: ${opdIdText}`);
+    }
+
+    // 元のOPD ID以外の新しいOPD IDを探す
+    const newOpdId = allOpdIds.find(id => id !== opdId);
+
+    if (!newOpdId) {
+      console.error('❌ 小分け配信OPDが見つかりませんでした');
+      console.error(`   元のOPD ID: ${opdId}`);
+      console.error(`   検索結果のOPD IDs: ${allOpdIds.join(', ')}`);
+    }
 
     // 小分け配信コピー元と違うIDが表示されること（ここで失敗した場合小分け配信が作成されていない）
-    expect(firstOpdIdText).not.toBe(opdId);
+    expect(newOpdId).toBeDefined();
+    expect(newOpdId).not.toBe(opdId);
 
-    console.log(`✓ 小分け配信されたOPD ID: ${firstOpdIdText} (元のOPD ID: ${opdId})`);
+    console.log(`✓ 小分け配信OPDの検出に成功`);
+    console.log(`   元のOPD ID: ${opdId}`);
+    console.log(`   小分け配信OPD ID: ${newOpdId}`);
 
     // コンテキストをクローズ
     await mrkunContext2.close();
