@@ -283,13 +283,29 @@ test.describe('Unit1_OPD_標準テスト_ID74', () => {
     await mrkunPage2.goto(mrkunSearchUrl);
     await mrkunPage2.waitForLoadState('networkidle');
 
-    // 小分け配信OPDの作成を待機（Job実行後、数秒かかる可能性がある）
+    // 小分け配信OPDの作成を待機（Job実行後、処理に時間がかかる可能性がある）
+    // 複数回リロードして確認
     console.log('⏳ 小分け配信OPD作成を待機中...');
-    await mrkunPage2.waitForTimeout(5000);
 
-    // ページをリロードして最新の状態を取得
-    await mrkunPage2.reload();
-    await mrkunPage2.waitForLoadState('networkidle');
+    let retryCount = 0;
+    const maxRetries = 6; // 最大30秒（5秒 x 6回）
+
+    for (retryCount = 0; retryCount < maxRetries; retryCount++) {
+      await mrkunPage2.waitForTimeout(5000);
+      await mrkunPage2.reload();
+      await mrkunPage2.waitForLoadState('networkidle');
+
+      // OPD件数を確認
+      const tempLinks = mrkunPage2.locator('#widthpx > table.listTable > tbody > tr > td.cell_1 > p:nth-child(1) > a');
+      const tempCount = await tempLinks.count();
+
+      console.log(`   リトライ ${retryCount + 1}/${maxRetries}: ${tempCount}件のOPD`);
+
+      if (tempCount > 1) {
+        console.log('   ✓ 小分け配信OPDが作成されました');
+        break;
+      }
+    }
 
     // 一覧のすべてのOPD IDを取得してデバッグ出力
     const allOpdIdLinks = mrkunPage2.locator('#widthpx > table.listTable > tbody > tr > td.cell_1 > p:nth-child(1) > a');
@@ -316,7 +332,9 @@ test.describe('Unit1_OPD_標準テスト_ID74', () => {
     expect(newOpdId).toBeDefined();
     expect(newOpdId).not.toBe(opdId);
 
-    console.log(`✓ 小分け配信されたOPD ID: ${newOpdId} (元のOPD ID: ${opdId})`);
+    console.log(`✓ 小分け配信OPDの検出に成功`);
+    console.log(`   元のOPD ID: ${opdId}`);
+    console.log(`   小分け配信OPD ID: ${newOpdId}`);
 
     // コンテキストをクローズ
     await mrkunContext2.close();
